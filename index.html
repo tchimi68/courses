@@ -180,10 +180,6 @@
         ],
       },
       {
-        id: "frais-pates-poisson", label: "🥗 Frais / Pâtes — Houmous — Poisson fumé",
-        items: [],
-      },
-      {
         id: "frais-traiteur", label: "🥗 Frais — Pâtes / Houmous / Gnocchis",
         items: [
           { id: 180, name: "Pâtes fraîches",              frequent: true,  store: "super" },
@@ -327,25 +323,8 @@
               const newLegumes = { ...old, label:"🥦 Légumes", items: [...base, ...oignons, ...herbes] };
               cats = cats.flatMap(c => c.id === "legumes" ? [newFruits, newLegumes] : [c]);
             }
-            // Migration : insérer frais-pates-poisson après fromage-beurre si absent
-            if (!cats.find(c => c.id === "frais-pates-poisson")) {
-              const idx = cats.findIndex(c => c.id === "fromage-beurre");
-              const newCat = { id: "frais-pates-poisson", label: "🥗 Frais / Pâtes — Houmous — Poisson fumé", items: [] };
-              cats = idx !== -1
-                ? [...cats.slice(0, idx+1), newCat, ...cats.slice(idx+1)]
-                : [...cats, newCat];
-            }
-            // Migration : repositionner frais-pates-poisson juste après fromage-beurre si mal placé
-            else {
-              const fpIdx = cats.findIndex(c => c.id === "frais-pates-poisson");
-              const fbIdx = cats.findIndex(c => c.id === "fromage-beurre");
-              if (fbIdx !== -1 && fpIdx !== fbIdx + 1) {
-                const cat = cats[fpIdx];
-                cats = cats.filter((_, i) => i !== fpIdx);
-                const newFbIdx = cats.findIndex(c => c.id === "fromage-beurre");
-                cats = [...cats.slice(0, newFbIdx+1), cat, ...cats.slice(newFbIdx+1)];
-              }
-            }
+            // Migration : supprimer la catégorie vide frais-pates-poisson si présente
+            cats = cats.filter(c => c.id !== "frais-pates-poisson");
             return cats;
           }
         } catch {}
