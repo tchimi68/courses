@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Liste de courses</title>
+  <!-- React + Babel via CDN — pour dev local sans build tool -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0f0f0f; color: #f0ede8; font-family: Georgia, serif; }
+    select option { background: #1a1a1a; color: #f0ede8; }
+    /* Scrollbar discrète */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #0f0f0f; }
+    ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    // ─── CONFIGURATION MAGASINS ───────────────────────────────────────────────
+    const STORES = [
+      { id: "super",   label: "🛒 Supermarché", color: "#f0ede8" },
+      { id: "boucher", label: "🥩 Boucher",      color: "#e8a87c" },
+      { id: "biocoop", label: "🌿 Biocoop",      color: "#7cb87e" },
+    ];
+
+    // ─── DONNÉES INITIALES ────────────────────────────────────────────────────
+    const initialCategories = [
+      {
+        id: "hygiene", label: "🧴 Hygiène & Maison",
+        items: [
+          { id: 1,  name: "Papier toilette (PQ)",     frequent: true,  store: "super" },
+          { id: 2,  name: "Sacs poubelle 30L",         frequent: true,  store: "super" },
+          { id: 3,  name: "Sacs poubelle 10L",         frequent: false, store: "super" },
+          { id: 4,  name: "Sacs poubelle 20L (SDB)",   frequent: false, store: "super" },
+          { id: 5,  name: "Recharge lessive",          frequent: true,  store: "super" },
+          { id: 6,  name: "Recharges savon",           frequent: true,  store: "super" },
+          { id: 7,  name: "Brosse vaisselle",          frequent: false, store: "super" },
+          { id: 8,  name: "Éponges",                   frequent: true,  store: "super" },
+          { id: 9,  name: "Produit WC (écolabel)",     frequent: false, store: "super" },
+          { id: 10, name: "Papier sulfurisé",          frequent: true,  store: "super" },
+        ],
+      },
+      {
+        id: "boissons", label: "🥤 Boissons",
+        items: [
+          { id: 20, name: "San Pellegrino",     frequent: true,  store: "super" },
+          { id: 21, name: "Perrier",            frequent: false, store: "super" },
+          { id: 22, name: "Jus d'orange",       frequent: true,  store: "super" },
+          { id: 23, name: "Jus pomme/poire",    frequent: false, store: "super" },
+          { id: 24, name: "Cranberry juice",    frequent: false, store: "super" },
+          { id: 25, name: "Cidre",              frequent: false, store: "super" },
+          { id: 26, name: "Vin rouge",          frequent: false, store: "super" },
+          { id: 27, name: "Vin blanc",          frequent: false, store: "super" },
+          { id: 28, name: "Prosecco",           frequent: false, store: "super" },
+          { id: 29, name: "Bière Heineken 0%",  frequent: false, store: "super" },
+          { id: 30, name: "Schweppes canettes", frequent: false, store: "super" },
+          { id: 31, name: "Rhum",               frequent: false, store: "super" },
+          { id: 32, name: "Vodka",              frequent: false, store: "super" },
+        ],
+      },
+      {
+        id: "pain", label: "🍞 Pain & Boulangerie",
+        items: [
+          { id: 40, name: "Pain tranché complet (La Tartine)", frequent: true,  store: "super"   },
+          { id: 41, name: "Pain tranché meule/graines",        frequent: false, store: "super"   },
+          { id: 42, name: "Pain petit épeautre",               frequent: false, store: "biocoop" },
+          { id: 43, name: "Pains au lait bio",                 frequent: true,  store: "super"   },
+          { id: 44, name: "Pains burger",                      frequent: false, store: "super"   },
+          { id: 45, name: "Biscottes complètes",               frequent: true,  store: "super"   },
+          { id: 46, name: "Nans",                              frequent: false, store: "super"   },
+          { id: 47, name: "Pita",                              frequent: false, store: "super"   },
+          { id: 48, name: "Crêpes",                            frequent: false, store: "super"   },
+        ],
+      },
+      {
+        id: "viande-poisson", label: "🥩 Viande & Poisson",
+        items: [
+          { id: 60, name: "Steaks hachés",          frequent: true,  store: "super"   },
+          { id: 61, name: "Viande hachée (kg)",     frequent: true,  store: "boucher" },
+          { id: 62, name: "Filets de poulet",       frequent: true,  store: "super"   },
+          { id: 63, name: "Poulet rôti",            frequent: true,  store: "super"   },
+          { id: 64, name: "Cuisses de poulet",      frequent: false, store: "super"   },
+          { id: 65, name: "Escalopes de veau",      frequent: false, store: "boucher" },
+          { id: 66, name: "Magrets de canard",      frequent: false, store: "boucher" },
+          { id: 67, name: "Côte de bœuf",           frequent: false, store: "boucher" },
+          { id: 68, name: "Lardons",                frequent: true,  store: "super"   },
+          { id: 69, name: "Poitrine fumée",         frequent: true,  store: "super"   },
+          { id: 70, name: "Bacon",                  frequent: true,  store: "super"   },
+          { id: 71, name: "Ribs / travers de porc", frequent: false, store: "boucher" },
+          { id: 72, name: "Chipolatas",             frequent: false, store: "boucher" },
+          { id: 73, name: "Merguez",                frequent: false, store: "boucher" },
+          { id: 74, name: "Saucisson",              frequent: false, store: "super"   },
+          { id: 75, name: "Viande fajitas",         frequent: false, store: "boucher" },
+          { id: 76, name: "Poisson (frais)",        frequent: true,  store: "super"   },
+          { id: 77, name: "Saumon pavé",            frequent: true,  store: "super"   },
+          { id: 78, name: "Cabillaud",              frequent: false, store: "super"   },
+          { id: 79, name: "Truite",                 frequent: false, store: "super"   },
+          { id: 80, name: "Thon frais",             frequent: false, store: "super"   },
+          { id: 81, name: "Crevettes",              frequent: true,  store: "super"   },
+          { id: 82, name: "Moules",                 frequent: false, store: "super"   },
+          { id: 83, name: "Calamars",               frequent: false, store: "super"   },
+        ],
+      },
+      {
+        id: "legumes", label: "🥦 Légumes & Fruits",
+        items: [
+          { id: 100, name: "Tomates",          frequent: true,  store: "super"   },
+          { id: 101, name: "Tomates cerises",  frequent: true,  store: "super"   },
+          { id: 102, name: "Concombre",        frequent: true,  store: "super"   },
+          { id: 103, name: "Salade / mâche",   frequent: true,  store: "super"   },
+          { id: 104, name: "Carottes",         frequent: true,  store: "super"   },
+          { id: 105, name: "Carottes bio",     frequent: false, store: "biocoop" },
+          { id: 106, name: "Courgettes",       frequent: true,  store: "super"   },
+          { id: 107, name: "Champignons",      frequent: true,  store: "super"   },
+          { id: 108, name: "Épinards",         frequent: true,  store: "super"   },
+          { id: 109, name: "Brocoli",          frequent: true,  store: "super"   },
+          { id: 110, name: "Haricots verts",   frequent: true,  store: "super"   },
+          { id: 111, name: "Poireaux",         frequent: false, store: "super"   },
+          { id: 112, name: "Poivrons",         frequent: false, store: "super"   },
+          { id: 113, name: "Oignons",          frequent: true,  store: "super"   },
+          { id: 114, name: "Oignons rouges",   frequent: true,  store: "super"   },
+          { id: 115, name: "Échalotes",        frequent: true,  store: "super"   },
+          { id: 116, name: "Ail",              frequent: true,  store: "super"   },
+          { id: 117, name: "Pommes de terre",  frequent: true,  store: "super"   },
+          { id: 118, name: "Butternut",        frequent: false, store: "super"   },
+          { id: 119, name: "Radis",            frequent: false, store: "super"   },
+          { id: 120, name: "Menthe",           frequent: false, store: "super"   },
+          { id: 121, name: "Persil",           frequent: false, store: "super"   },
+          { id: 122, name: "Ciboulette",       frequent: false, store: "super"   },
+          { id: 123, name: "Coriandre",        frequent: false, store: "super"   },
+          { id: 124, name: "Bananes",          frequent: true,  store: "super"   },
+          { id: 125, name: "Fraises",          frequent: true,  store: "super"   },
+          { id: 126, name: "Pommes",           frequent: true,  store: "super"   },
+          { id: 127, name: "Poires",           frequent: true,  store: "super"   },
+          { id: 128, name: "Kiwis",            frequent: true,  store: "super"   },
+          { id: 129, name: "Avocats",          frequent: true,  store: "super"   },
+          { id: 130, name: "Citrons jaunes",   frequent: true,  store: "super"   },
+          { id: 131, name: "Citrons verts",    frequent: true,  store: "super"   },
+          { id: 132, name: "Oranges",          frequent: false, store: "super"   },
+          { id: 133, name: "Melon",            frequent: false, store: "super"   },
+          { id: 134, name: "Raisins blonds",   frequent: false, store: "super"   },
+        ],
+      },
+      {
+        id: "fromage-beurre", label: "🧀 Fromage / Beurre / Yaourts",
+        items: [
+          { id: 150, name: "Beurre salé",                    frequent: true,  store: "super"   },
+          { id: 151, name: "Beurre doux",                    frequent: false, store: "super"   },
+          { id: 152, name: "Beurre végétal",                 frequent: false, store: "biocoop" },
+          { id: 153, name: "Œufs",                           frequent: true,  store: "super"   },
+          { id: 154, name: "Lait",                           frequent: true,  store: "super"   },
+          { id: 155, name: "Crème fraîche légère 15%",       frequent: true,  store: "super"   },
+          { id: 156, name: "Crème fleurette",                frequent: false, store: "super"   },
+          { id: 157, name: "Chantilly",                      frequent: false, store: "super"   },
+          { id: 158, name: "Yaourts nature",                 frequent: true,  store: "super"   },
+          { id: 159, name: "Yaourts vanille",                frequent: true,  store: "super"   },
+          { id: 160, name: "Yaourt brebis",                  frequent: true,  store: "super"   },
+          { id: 161, name: "Fromage blanc brebis",           frequent: true,  store: "super"   },
+          { id: 162, name: "Fromage tranches (Edam/Gruyère)", frequent: true, store: "super"   },
+          { id: 163, name: "Morbier",                        frequent: true,  store: "super"   },
+          { id: 164, name: "Reblochon",                      frequent: false, store: "super"   },
+          { id: 165, name: "Tomme brebis",                   frequent: false, store: "super"   },
+          { id: 166, name: "Feta",                           frequent: true,  store: "super"   },
+          { id: 167, name: "Bûche de chèvre",                frequent: false, store: "super"   },
+          { id: 168, name: "Crottins Rians",                 frequent: false, store: "super"   },
+          { id: 169, name: "Comté",                          frequent: false, store: "super"   },
+          { id: 170, name: "Caramel beurre salé",            frequent: false, store: "super"   },
+        ],
+      },
+      {
+        id: "frais-traiteur", label: "🥗 Frais — Pâtes / Houmous / Gnocchis",
+        items: [
+          { id: 180, name: "Pâtes fraîches",              frequent: true,  store: "super" },
+          { id: 181, name: "Raviolis verts carrés",        frequent: true,  store: "super" },
+          { id: 182, name: "Grands raviolis verts",        frequent: false, store: "super" },
+          { id: 183, name: "Raviolis viande",              frequent: false, store: "super" },
+          { id: 184, name: "Gnocchis",                     frequent: true,  store: "super" },
+          { id: 185, name: "Houmous",                      frequent: true,  store: "super" },
+          { id: 186, name: "St Môret",                     frequent: true,  store: "super" },
+          { id: 187, name: "Tartinade poivron/aubergine",  frequent: false, store: "super" },
+          { id: 188, name: "Pâte brisée",                  frequent: true,  store: "super" },
+          { id: 189, name: "Pâte pizza",                   frequent: false, store: "super" },
+          { id: 190, name: "Falafels",                     frequent: false, store: "super" },
+          { id: 191, name: "Rouleaux de printemps",        frequent: false, store: "super" },
+          { id: 192, name: "Nems",                         frequent: false, store: "super" },
+        ],
+      },
+      {
+        id: "frais-charcuterie", label: "🥓 Frais — Jambon / Charcuterie",
+        items: [
+          { id: 200, name: "Jambon",                    frequent: true,  store: "super" },
+          { id: 201, name: "Saumon fumé",               frequent: false, store: "super" },
+          { id: 202, name: "Truite fumée",              frequent: true,  store: "super" },
+          { id: 203, name: "Maquereaux à la moutarde",  frequent: true,  store: "super" },
+          { id: 204, name: "Maquereaux au vin blanc",   frequent: false, store: "super" },
+          { id: 205, name: "Thon huile d'olive (boîte)", frequent: true, store: "super" },
+          { id: 206, name: "Sardines",                  frequent: false, store: "super" },
+        ],
+      },
+      {
+        id: "surgele", label: "🧊 Surgelés",
+        items: [
+          { id: 220, name: "Haricots verts surgelés",            frequent: true,  store: "super" },
+          { id: 221, name: "Pommes de terre carrées surgelées",   frequent: true,  store: "super" },
+          { id: 222, name: "Pommes de terre purée surgelées",     frequent: false, store: "super" },
+          { id: 223, name: "Crevettes surgelées",                frequent: true,  store: "super" },
+          { id: 224, name: "Poissons panés",                     frequent: true,  store: "super" },
+          { id: 225, name: "Glace vanille",                      frequent: true,  store: "super" },
+          { id: 226, name: "Cônes glacés chocolat",              frequent: false, store: "super" },
+          { id: 227, name: "Tarte Tatin Picard",                 frequent: false, store: "super" },
+          { id: 228, name: "Tarte framboise Picard",             frequent: false, store: "super" },
+          { id: 229, name: "Glaçons",                            frequent: false, store: "super" },
+        ],
+      },
+      {
+        id: "choco-gateau", label: "🍫 Chocolat / Gâteaux / Biscuits / Apéro",
+        items: [
+          { id: 240, name: "Chocolat noir 70%",           frequent: true,  store: "super" },
+          { id: 241, name: "Chocolat dessert",            frequent: true,  store: "super" },
+          { id: 242, name: "Balistos",                    frequent: true,  store: "super" },
+          { id: 243, name: "Gâteaux dessert / goûter",   frequent: true,  store: "super" },
+          { id: 244, name: "Kinder Surprise",             frequent: false, store: "super" },
+          { id: 245, name: "Compotes gourdes",            frequent: true,  store: "super" },
+          { id: 246, name: "Bonbons",                     frequent: false, store: "super" },
+          { id: 247, name: "Mélange fruits secs",         frequent: false, store: "super" },
+          { id: 248, name: "Amandes effilées",            frequent: false, store: "super" },
+          { id: 249, name: "Cacahuètes grillées salées",  frequent: false, store: "super" },
+          { id: 250, name: "Gressins",                    frequent: false, store: "super" },
+          { id: 251, name: "Gâteaux apéro / croustilles", frequent: false, store: "super" },
+          { id: 252, name: "Barres céréales choco",       frequent: false, store: "super" },
+          { id: 253, name: "Céréales Anna",               frequent: true,  store: "super" },
+        ],
+      },
+      {
+        id: "chips-exotique", label: "🍟 Chips / Exotique / Lait d'avoine",
+        items: [
+          { id: 270, name: "Chips crevette",         frequent: true,  store: "super"   },
+          { id: 271, name: "Curly",                  frequent: false, store: "super"   },
+          { id: 272, name: "Chips autres",           frequent: false, store: "super"   },
+          { id: 273, name: "Lait d'avoine sans sucre", frequent: true, store: "super"  },
+          { id: 274, name: "Crème avoine",           frequent: false, store: "biocoop" },
+          { id: 275, name: "Lait de coco",           frequent: true,  store: "super"   },
+          { id: 276, name: "Sauce soja / Nuoc-mâm",  frequent: false, store: "super"   },
+          { id: 277, name: "Sauce curry",            frequent: false, store: "super"   },
+          { id: 278, name: "Worcester sauce",        frequent: false, store: "super"   },
+          { id: 279, name: "Vermicelles / Nouilles", frequent: false, store: "super"   },
+        ],
+      },
+      {
+        id: "conserves-epices", label: "🥫 Conserves & Épicerie & Épices",
+        items: [
+          { id: 300, name: "Boîtes Mutti tomate",          frequent: true,  store: "super"   },
+          { id: 301, name: "Sauce tomate",                  frequent: true,  store: "super"   },
+          { id: 302, name: "Sauce BBQ",                     frequent: false, store: "super"   },
+          { id: 303, name: "Sauce pizza",                   frequent: false, store: "super"   },
+          { id: 304, name: "Moutarde",                      frequent: true,  store: "super"   },
+          { id: 305, name: "Huile d'olive",                 frequent: true,  store: "super"   },
+          { id: 306, name: "Huile neutre",                  frequent: false, store: "super"   },
+          { id: 307, name: "Pâtes sèches",                  frequent: true,  store: "super"   },
+          { id: 308, name: "Pâtes encre de seiche",         frequent: false, store: "super"   },
+          { id: 309, name: "Riz",                           frequent: false, store: "super"   },
+          { id: 310, name: "Lentilles",                     frequent: false, store: "biocoop" },
+          { id: 311, name: "Farine / farine demi-complète", frequent: false, store: "biocoop" },
+          { id: 312, name: "Poudre d'amandes",              frequent: false, store: "super"   },
+          { id: 313, name: "Chapelure",                     frequent: false, store: "super"   },
+          { id: 314, name: "Sel fin / fleur de sel",        frequent: true,  store: "super"   },
+          { id: 315, name: "Poivre fin",                    frequent: true,  store: "super"   },
+          { id: 316, name: "Bouquet garni",                 frequent: false, store: "super"   },
+          { id: 317, name: "Sucre",                         frequent: true,  store: "super"   },
+          { id: 318, name: "Sirop d'érable",                frequent: false, store: "super"   },
+          { id: 319, name: "Cranberries séchées",           frequent: false, store: "biocoop" },
+          { id: 320, name: "Confiture",                     frequent: false, store: "super"   },
+          { id: 321, name: "Oignons grillés",               frequent: false, store: "super"   },
+          { id: 322, name: "Maïs",                          frequent: false, store: "super"   },
+          { id: 323, name: "Compotes",                      frequent: true,  store: "super"   },
+        ],
+      },
+      {
+        id: "cafe-petitdej", label: "☕ Café & Petit déjeuner",
+        items: [
+          { id: 340, name: "Capsules café",          frequent: true,  store: "super"   },
+          { id: 341, name: "Capsules déca",          frequent: true,  store: "super"   },
+          { id: 342, name: "Café moulu déca",        frequent: false, store: "biocoop" },
+          { id: 343, name: "Earl Grey",              frequent: false, store: "biocoop" },
+          { id: 344, name: "Jus d'orange (petit dej)", frequent: true, store: "super"  },
+        ],
+      },
+    ];
+
+    // ─── HELPERS ──────────────────────────────────────────────────────────────
+    const storeInfo = (id) => STORES.find(s => s.id === id) || STORES[0];
+
+    // ─── COMPOSANT PRINCIPAL ──────────────────────────────────────────────────
+    function GroceryApp() {
+      const [categories, setCategories] = useState(
+        initialCategories.map(cat => ({
+          ...cat,
+          items: cat.items.map(item => ({ ...item, checked: false })),
+        }))
+      );
+      const [view, setView]                   = useState("list");
+      const [newItemName, setNewItemName]     = useState("");
+      const [newItemCat, setNewItemCat]       = useState("legumes");
+      const [newItemStore, setNewItemStore]   = useState("super");
+      const [showFrequentOnly, setShowFrequentOnly] = useState(false);
+      const [filterStore, setFilterStore]     = useState("all");
+      const [nextId, setNextId]               = useState(500);
+      const [expandedCats, setExpandedCats]   = useState(() =>
+        Object.fromEntries(initialCategories.map(c => [c.id, true]))
+      );
+      const [editingStore, setEditingStore]   = useState(null);
+
+      const toggleItem = (catId, itemId) =>
+        setCategories(cats => cats.map(cat =>
+          cat.id === catId
+            ? { ...cat, items: cat.items.map(i => i.id === itemId ? { ...i, checked: !i.checked } : i) }
+            : cat
+        ));
+
+      const setItemStore = (catId, itemId, store) => {
+        setCategories(cats => cats.map(cat =>
+          cat.id === catId
+            ? { ...cat, items: cat.items.map(i => i.id === itemId ? { ...i, store } : i) }
+            : cat
+        ));
+        setEditingStore(null);
+      };
+
+      const toggleFrequent = (catId, itemId) =>
+        setCategories(cats => cats.map(cat =>
+          cat.id === catId
+            ? { ...cat, items: cat.items.map(i => i.id === itemId ? { ...i, frequent: !i.frequent } : i) }
+            : cat
+        ));
+
+      const deleteItem = (catId, itemId) =>
+        setCategories(cats => cats.map(cat =>
+          cat.id === catId
+            ? { ...cat, items: cat.items.filter(i => i.id !== itemId) }
+            : cat
+        ));
+
+      const addItem = () => {
+        if (!newItemName.trim()) return;
+        setCategories(cats => cats.map(cat =>
+          cat.id === newItemCat
+            ? { ...cat, items: [...cat.items, { id: nextId, name: newItemName.trim(), checked: true, frequent: false, store: newItemStore }] }
+            : cat
+        ));
+        setNextId(n => n + 1);
+        setNewItemName("");
+      };
+
+      const clearCart = () =>
+        setCategories(cats => cats.map(cat => ({ ...cat, items: cat.items.map(i => ({ ...i, checked: false })) })));
+
+      const toggleCat = (catId) =>
+        setExpandedCats(e => ({ ...e, [catId]: !e[catId] }));
+
+      const allChecked = categories.flatMap(cat =>
+        cat.items.filter(i => i.checked).map(i => ({ ...i, catLabel: cat.label, catId: cat.id }))
+      );
+      const totalChecked = allChecked.length;
+
+      const cartByStore = STORES.map(s => ({
+        ...s,
+        items: allChecked.filter(i => i.store === s.id),
+      })).filter(s => s.items.length > 0);
+
+      // ── RENDER ──────────────────────────────────────────────────────────────
+      return (
+        <div style={{ minHeight:"100vh", background:"#0f0f0f", color:"#f0ede8", fontFamily:"Georgia,serif", maxWidth:480, margin:"0 auto", paddingBottom:120 }}>
+
+          {/* ── HEADER ── */}
+          <div style={{ padding:"24px 20px 14px", borderBottom:"1px solid #222", position:"sticky", top:0, background:"#0f0f0f", zIndex:10 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ fontSize:10, letterSpacing:3, color:"#555", textTransform:"uppercase", marginBottom:3 }}>Liste de courses</div>
+                <h1 style={{ margin:0, fontSize:20, fontWeight:"normal" }}>
+                  {view === "cart" ? `🛒 Panier (${totalChecked})` : "Tous les rayons"}
+                </h1>
+              </div>
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                {view === "list" && (
+                  <button onClick={() => setShowFrequentOnly(f => !f)} style={{
+                    background: showFrequentOnly ? "#c8a96e" : "transparent",
+                    border: `1px solid ${showFrequentOnly ? "#c8a96e" : "#444"}`,
+                    color: showFrequentOnly ? "#0f0f0f" : "#888",
+                    borderRadius:20, padding:"5px 10px", fontSize:11, cursor:"pointer",
+                  }}>★ fréquents</button>
+                )}
+                <button onClick={() => setView(v => v === "list" ? "cart" : "list")} style={{
+                  background: view === "cart" ? "#c8a96e" : "#1a1a1a",
+                  border: `1px solid ${view === "cart" ? "#c8a96e" : "#333"}`,
+                  color: view === "cart" ? "#0f0f0f" : "#f0ede8",
+                  borderRadius:20, padding:"6px 14px", fontSize:12, cursor:"pointer", fontFamily:"Georgia,serif",
+                }}>
+                  {view === "list" ? `🛒 ${totalChecked}` : "← Liste"}
+                </button>
+              </div>
+            </div>
+
+            {/* Filtres magasins */}
+            {view === "list" && (
+              <div style={{ display:"flex", gap:6, marginTop:12, flexWrap:"wrap" }}>
+                <button onClick={() => setFilterStore("all")} style={{
+                  background: filterStore === "all" ? "#f0ede8" : "transparent",
+                  border: `1px solid ${filterStore === "all" ? "#f0ede8" : "#333"}`,
+                  color: filterStore === "all" ? "#0f0f0f" : "#666",
+                  borderRadius:20, padding:"4px 12px", fontSize:11, cursor:"pointer",
+                }}>Tous</button>
+                {STORES.map(s => (
+                  <button key={s.id} onClick={() => setFilterStore(filterStore === s.id ? "all" : s.id)} style={{
+                    background: filterStore === s.id ? s.color : "transparent",
+                    border: `1px solid ${filterStore === s.id ? s.color : "#333"}`,
+                    color: filterStore === s.id ? "#0f0f0f" : "#666",
+                    borderRadius:20, padding:"4px 12px", fontSize:11, cursor:"pointer",
+                  }}>{s.label}</button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── VUE PANIER ── */}
+          {view === "cart" && (
+            <div style={{ padding:"16px 20px" }}>
+              {cartByStore.length === 0 ? (
+                <div style={{ textAlign:"center", color:"#555", marginTop:60 }}>Aucun article sélectionné.</div>
+              ) : (
+                <>
+                  {cartByStore.map(store => (
+                    <div key={store.id} style={{ marginBottom:32 }}>
+                      <div style={{ fontSize:13, color:store.color, marginBottom:12, borderBottom:"1px solid #222", paddingBottom:8, display:"flex", justifyContent:"space-between" }}>
+                        <span>{store.label}</span>
+                        <span style={{ color:"#555", fontSize:11 }}>{store.items.length} article{store.items.length > 1 ? "s" : ""}</span>
+                      </div>
+                      {store.items.map(item => (
+                        <div key={item.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"9px 0", borderBottom:"1px solid #1a1a1a" }}>
+                          <div>
+                            <div style={{ fontSize:15 }}>{item.name}</div>
+                            <div style={{ fontSize:10, color:"#444", marginTop:2 }}>{item.catLabel}</div>
+                          </div>
+                          <button onClick={() => toggleItem(item.catId, item.id)} style={{ background:"none", border:"none", color:"#555", cursor:"pointer", fontSize:16, padding:"4px 8px" }}>✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                  <button onClick={clearCart} style={{ width:"100%", marginTop:8, padding:"14px", background:"transparent", border:"1px solid #282828", color:"#555", borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif", fontSize:13 }}>
+                    Vider le panier
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── VUE LISTE ── */}
+          {view === "list" && (
+            <div style={{ padding:"6px 0" }}>
+              {categories.map(cat => {
+                let visibleItems = cat.items;
+                if (showFrequentOnly) visibleItems = visibleItems.filter(i => i.frequent);
+                if (filterStore !== "all") visibleItems = visibleItems.filter(i => i.store === filterStore);
+                if (visibleItems.length === 0) return null;
+                const checkedCount = visibleItems.filter(i => i.checked).length;
+                const isExpanded = expandedCats[cat.id];
+
+                return (
+                  <div key={cat.id} style={{ marginBottom:1 }}>
+                    {/* Entête catégorie */}
+                    <div onClick={() => toggleCat(cat.id)} style={{
+                      padding:"11px 20px", display:"flex", justifyContent:"space-between", alignItems:"center",
+                      cursor:"pointer", borderBottom:"1px solid #1a1a1a",
+                      background: checkedCount > 0 ? "#111a10" : "#0a0a0a",
+                    }}>
+                      <span style={{ fontSize:11, letterSpacing:2, color:"#c8a96e", textTransform:"uppercase" }}>{cat.label}</span>
+                      <span style={{ fontSize:11, color:"#555" }}>
+                        {checkedCount > 0 && <span style={{ color:"#6a9e5a", marginRight:8 }}>✓{checkedCount}</span>}
+                        {isExpanded ? "▲" : "▼"}
+                      </span>
+                    </div>
+
+                    {isExpanded && visibleItems.map(item => {
+                      const store = storeInfo(item.store);
+                      const isEditingThis = editingStore === item.id;
+                      return (
+                        <div key={item.id}>
+                          <div style={{ display:"flex", alignItems:"center", padding:"8px 20px", borderBottom:"1px solid #111", background: item.checked ? "#0d160c" : "transparent" }}>
+                            {/* Checkbox */}
+                            <div onClick={() => toggleItem(cat.id, item.id)} style={{
+                              width:19, height:19, borderRadius:4,
+                              border: item.checked ? "none" : "1px solid #333",
+                              background: item.checked ? "#6a9e5a" : "transparent",
+                              display:"flex", alignItems:"center", justifyContent:"center",
+                              cursor:"pointer", flexShrink:0, marginRight:11, fontSize:11,
+                            }}>{item.checked && "✓"}</div>
+
+                            {/* Nom */}
+                            <span onClick={() => toggleItem(cat.id, item.id)} style={{
+                              flex:1, fontSize:14, cursor:"pointer",
+                              textDecoration: item.checked ? "line-through" : "none",
+                              color: item.checked ? "#3a3a3a" : "#f0ede8",
+                            }}>{item.name}</span>
+
+                            {/* Badge magasin */}
+                            <button onClick={() => setEditingStore(isEditingThis ? null : item.id)} style={{
+                              background:"transparent", border:"1px solid #222", borderRadius:12,
+                              padding:"2px 8px", fontSize:10, color:store.color,
+                              cursor:"pointer", marginRight:6, whiteSpace:"nowrap",
+                            }}>{store.label.split(" ")[0]}</button>
+
+                            {/* Étoile */}
+                            <button onClick={() => toggleFrequent(cat.id, item.id)} style={{
+                              background:"none", border:"none", cursor:"pointer",
+                              fontSize:13, color: item.frequent ? "#c8a96e" : "#222", padding:3,
+                            }}>★</button>
+
+                            {/* Supprimer */}
+                            <button onClick={() => deleteItem(cat.id, item.id)} style={{
+                              background:"none", border:"none", cursor:"pointer", fontSize:11, color:"#222", padding:3,
+                            }}>✕</button>
+                          </div>
+
+                          {/* Sélecteur magasin */}
+                          {isEditingThis && (
+                            <div style={{ display:"flex", gap:6, padding:"8px 20px 8px 50px", background:"#111", borderBottom:"1px solid #111" }}>
+                              {STORES.map(s => (
+                                <button key={s.id} onClick={() => setItemStore(cat.id, item.id, s.id)} style={{
+                                  background: item.store === s.id ? s.color : "transparent",
+                                  border: `1px solid ${item.store === s.id ? s.color : "#333"}`,
+                                  color: item.store === s.id ? "#0f0f0f" : s.color,
+                                  borderRadius:20, padding:"4px 10px", fontSize:11, cursor:"pointer",
+                                }}>{s.label}</button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+
+              {/* Ajouter un article */}
+              <div style={{ padding:"20px", borderTop:"1px solid #1a1a1a", marginTop:16 }}>
+                <div style={{ fontSize:10, letterSpacing:2, color:"#555", textTransform:"uppercase", marginBottom:10 }}>Ajouter un article</div>
+                <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                  <input
+                    value={newItemName}
+                    onChange={e => setNewItemName(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && addItem()}
+                    placeholder="Nom de l'article..."
+                    style={{ flex:1, background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:8, padding:"10px 12px", color:"#f0ede8", fontFamily:"Georgia,serif", fontSize:14, outline:"none" }}
+                  />
+                  <button onClick={addItem} style={{ background:"#c8a96e", border:"none", borderRadius:8, padding:"10px 16px", color:"#0f0f0f", cursor:"pointer", fontSize:18, fontWeight:"bold" }}>+</button>
+                </div>
+                <div style={{ display:"flex", gap:6, marginBottom:8 }}>
+                  {STORES.map(s => (
+                    <button key={s.id} onClick={() => setNewItemStore(s.id)} style={{
+                      background: newItemStore === s.id ? s.color : "transparent",
+                      border: `1px solid ${newItemStore === s.id ? s.color : "#333"}`,
+                      color: newItemStore === s.id ? "#0f0f0f" : s.color,
+                      borderRadius:20, padding:"4px 10px", fontSize:11, cursor:"pointer", flex:1,
+                    }}>{s.label}</button>
+                  ))}
+                </div>
+                <select value={newItemCat} onChange={e => setNewItemCat(e.target.value)} style={{
+                  width:"100%", background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:8,
+                  padding:"10px 12px", color:"#666", fontFamily:"Georgia,serif", fontSize:13, outline:"none",
+                }}>
+                  {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ─── MOUNT ────────────────────────────────────────────────────────────────
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<GroceryApp />);
+  </script>
+</body>
+</html>
