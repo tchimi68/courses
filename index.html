@@ -352,6 +352,8 @@
       const [customName, setCustomName]       = useState("");
       const [customStore, setCustomStore]     = useState("super");
       const customInputRef = useRef(null);
+      const [editingName, setEditingName]     = useState(null); // { catId, itemId }
+      const [editNameValue, setEditNameValue] = useState("");
 
       // ── HISTORIQUE (undo) ─────────────────────────────────────────────────
       const historyRef     = useRef([]);
@@ -516,6 +518,33 @@
       const removeCustomCartItem = (id) =>
         setCustomCartItems(items => items.filter(i => i.id !== id));
 
+      const startEditName = (catId, itemId, name) => {
+        setEditingName({ catId, itemId });
+        setEditNameValue(name);
+      };
+
+      const confirmEditName = () => {
+        if (!editingName) return;
+        const { catId, itemId } = editingName;
+        const trimmed = editNameValue.trim();
+        if (trimmed) updateCategories(cats => cats.map(cat =>
+          cat.id === catId
+            ? { ...cat, items: cat.items.map(i => i.id === itemId ? { ...i, name: trimmed } : i) }
+            : cat
+        ));
+        setEditingName(null);
+      };
+
+      const setItemQty = (catId, itemId, qty) =>
+        updateCategories(cats => cats.map(cat =>
+          cat.id === catId
+            ? { ...cat, items: cat.items.map(i => i.id === itemId ? { ...i, qty: Math.max(1, qty) } : i) }
+            : cat
+        ));
+
+      const setCustomQty = (id, qty) =>
+        setCustomCartItems(items => items.map(i => i.id === id ? { ...i, qty: Math.max(1, qty) } : i));
+
       const clearCart = () => {
         updateCategories(cats => cats.map(cat => ({ ...cat, items: cat.items.map(i => ({ ...i, checked: false })) })));
         setCustomCartItems([]);
@@ -622,12 +651,19 @@
                         <span style={{ color:"#aaa", fontSize:13 }}>{store.items.length} article{store.items.length > 1 ? "s" : ""}</span>
                       </div>
                       {store.items.map(item => (
-                        <div key={item.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:"1px solid #eeeeee" }}>
-                          <div>
+                        <div key={item.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:"1px solid #eeeeee", gap:12 }}>
+                          <div style={{ flex:1 }}>
                             <div style={{ fontSize:17 }}>{item.name}</div>
                             {item.catLabel && <div style={{ fontSize:12, color:"#aaa", marginTop:2 }}>{item.catLabel}</div>}
                           </div>
-                          <button onClick={() => item.catId ? toggleItem(item.catId, item.id) : removeCustomCartItem(item.id)} style={{ background:"none", border:"none", color:"#e53935", cursor:"pointer", fontSize:18, padding:"4px 8px" }}>✕</button>
+                          <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+                            <button onClick={() => item.catId ? setItemQty(item.catId, item.id, (item.qty||1)-1) : setCustomQty(item.id, (item.qty||1)-1)}
+                              style={{ width:28, height:28, background:"#f5f5f5", border:"1px solid #e0e0e0", borderRadius:6, cursor:"pointer", fontSize:18, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+                            <span style={{ fontSize:16, minWidth:22, textAlign:"center", fontFamily:"Georgia,serif" }}>{item.qty || 1}</span>
+                            <button onClick={() => item.catId ? setItemQty(item.catId, item.id, (item.qty||1)+1) : setCustomQty(item.id, (item.qty||1)+1)}
+                              style={{ width:28, height:28, background:"#f5f5f5", border:"1px solid #e0e0e0", borderRadius:6, cursor:"pointer", fontSize:18, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+                            <button onClick={() => item.catId ? toggleItem(item.catId, item.id) : removeCustomCartItem(item.id)} style={{ background:"none", border:"none", color:"#e53935", cursor:"pointer", fontSize:18, padding:"4px 6px" }}>✕</button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -727,12 +763,23 @@
                               cursor:"pointer", flexShrink:0, marginRight:12, fontSize:12, color:"#ffffff",
                             }}>{item.checked && "✓"}</div>
 
-                            {/* Nom */}
-                            <span onClick={() => toggleItem(cat.id, item.id)} style={{
-                              flex:1, fontSize:16, cursor:"pointer",
-                              textDecoration: item.checked ? "line-through" : "none",
-                              color: item.checked ? "#bbb" : "#1a1a1a",
-                            }}>{item.name}</span>
+                            {/* Nom — clic = édition */}
+                            {editingName?.itemId === item.id && editingName?.catId === cat.id ? (
+                              <input
+                                autoFocus
+                                value={editNameValue}
+                                onChange={e => setEditNameValue(e.target.value)}
+                                onBlur={confirmEditName}
+                                onKeyDown={e => { if (e.key === "Enter") confirmEditName(); if (e.key === "Escape") setEditingName(null); }}
+                                style={{ flex:1, fontSize:16, border:"none", borderBottom:"2px solid #c8a96e", outline:"none", fontFamily:"Georgia,serif", background:"transparent", color:"#1a1a1a", padding:"0 2px" }}
+                              />
+                            ) : (
+                              <span onClick={() => startEditName(cat.id, item.id, item.name)} style={{
+                                flex:1, fontSize:16, cursor:"text",
+                                textDecoration: item.checked ? "line-through" : "none",
+                                color: item.checked ? "#bbb" : "#1a1a1a",
+                              }}>{item.name}</span>
+                            )}
 
                             {/* Badge magasin */}
                             <button onClick={() => setEditingStore(isEditingThis ? null : item.id)} style={{
