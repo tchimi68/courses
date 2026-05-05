@@ -4,18 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Liste de courses</title>
-  <!-- React + Babel via CDN — pour dev local sans build tool -->
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0f0f0f; color: #f0ede8; font-family: Georgia, serif; }
-    select option { background: #1a1a1a; color: #f0ede8; }
-    /* Scrollbar discrète */
+    body { background: #ffffff; color: #1a1a1a; font-family: Georgia, serif; }
+    select option { background: #ffffff; color: #1a1a1a; }
     ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: #0f0f0f; }
-    ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+    ::-webkit-scrollbar-track { background: #f5f5f5; }
+    ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
   </style>
 </head>
 <body>
@@ -26,9 +24,10 @@
 
     // ─── CONFIGURATION MAGASINS ───────────────────────────────────────────────
     const STORES = [
-      { id: "super",   label: "🛒 Supermarché", color: "#f0ede8" },
-      { id: "boucher", label: "🥩 Boucher",      color: "#e8a87c" },
-      { id: "biocoop", label: "🌿 Biocoop",      color: "#7cb87e" },
+      { id: "super",   label: "🛒 Supermarché", color: "#1a1a1a" },
+      { id: "boucher", label: "🥩 Boucher",      color: "#b85c2a" },
+      { id: "biocoop", label: "🌿 Biocoop",      color: "#2a7a3a" },
+      { id: "picard",  label: "❄️ Picard",       color: "#1a5fa0" },
     ];
 
     // ─── DONNÉES INITIALES ────────────────────────────────────────────────────
@@ -208,16 +207,16 @@
       {
         id: "surgele", label: "🧊 Surgelés",
         items: [
-          { id: 220, name: "Haricots verts surgelés",            frequent: true,  store: "super" },
-          { id: 221, name: "Pommes de terre carrées surgelées",   frequent: true,  store: "super" },
-          { id: 222, name: "Pommes de terre purée surgelées",     frequent: false, store: "super" },
-          { id: 223, name: "Crevettes surgelées",                frequent: true,  store: "super" },
-          { id: 224, name: "Poissons panés",                     frequent: true,  store: "super" },
-          { id: 225, name: "Glace vanille",                      frequent: true,  store: "super" },
-          { id: 226, name: "Cônes glacés chocolat",              frequent: false, store: "super" },
-          { id: 227, name: "Tarte Tatin Picard",                 frequent: false, store: "super" },
-          { id: 228, name: "Tarte framboise Picard",             frequent: false, store: "super" },
-          { id: 229, name: "Glaçons",                            frequent: false, store: "super" },
+          { id: 220, name: "Haricots verts surgelés",            frequent: true,  store: "picard" },
+          { id: 221, name: "Pommes de terre carrées surgelées",   frequent: true,  store: "picard" },
+          { id: 222, name: "Pommes de terre purée surgelées",     frequent: false, store: "picard" },
+          { id: 223, name: "Crevettes surgelées",                frequent: true,  store: "picard" },
+          { id: 224, name: "Poissons panés",                     frequent: true,  store: "picard" },
+          { id: 225, name: "Glace vanille",                      frequent: true,  store: "picard" },
+          { id: 226, name: "Cônes glacés chocolat",              frequent: false, store: "picard" },
+          { id: 227, name: "Tarte Tatin Picard",                 frequent: false, store: "picard" },
+          { id: 228, name: "Tarte framboise Picard",             frequent: false, store: "picard" },
+          { id: 229, name: "Glaçons",                            frequent: false, store: "picard" },
         ],
       },
       {
@@ -332,6 +331,89 @@
       const [customStore, setCustomStore]     = useState("super");
       const customInputRef = useRef(null);
 
+      // ── DRAG & DROP ────────────────────────────────────────────────────────
+      const dragRef      = useRef(null);  // { catId, itemId }
+      const dropRef      = useRef(null);  // { catId, beforeItemId }
+      const ghostDivRef  = useRef(null);
+      const [dragging,   setDragging]   = useState(null);  // { catId, itemId, name }
+      const [dropTarget, setDropTarget] = useState(null);  // { catId, beforeItemId }
+      const [ghostPos,   setGhostPos]   = useState(null);  // { x, y }
+
+      const startDrag = (e, catId, itemId, name) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragRef.current = { catId, itemId };
+        setDragging({ catId, itemId, name });
+        setGhostPos({ x: e.clientX, y: e.clientY });
+      };
+
+      useEffect(() => {
+        const onMove = (e) => {
+          if (!dragRef.current) return;
+          setGhostPos({ x: e.clientX, y: e.clientY });
+          if (ghostDivRef.current) ghostDivRef.current.style.visibility = "hidden";
+          const el = document.elementFromPoint(e.clientX, e.clientY);
+          if (ghostDivRef.current) ghostDivRef.current.style.visibility = "";
+          const itemEl = el?.closest("[data-item-id]");
+          if (itemEl) {
+            const tgt = { catId: itemEl.dataset.catId, beforeItemId: Number(itemEl.dataset.itemId) };
+            if (tgt.catId !== dropRef.current?.catId || tgt.beforeItemId !== dropRef.current?.beforeItemId) {
+              dropRef.current = tgt;
+              setDropTarget({ ...tgt });
+            }
+            return;
+          }
+          const catEl = el?.closest("[data-cat-id]");
+          if (catEl) {
+            const tgt = { catId: catEl.dataset.catId, beforeItemId: null };
+            if (tgt.catId !== dropRef.current?.catId || dropRef.current?.beforeItemId !== null) {
+              dropRef.current = tgt;
+              setDropTarget({ ...tgt });
+            }
+            return;
+          }
+          if (dropRef.current) { dropRef.current = null; setDropTarget(null); }
+        };
+
+        const onUp = () => {
+          if (!dragRef.current) return;
+          const src = dragRef.current;
+          const tgt = dropRef.current;
+          if (tgt && !(tgt.catId === src.catId && tgt.beforeItemId === src.itemId)) {
+            setCategories(cats => {
+              const item = cats.find(c => c.id === src.catId)?.items.find(i => i.id === src.itemId);
+              if (!item) return cats;
+              let next = cats.map(cat =>
+                cat.id === src.catId ? { ...cat, items: cat.items.filter(i => i.id !== src.itemId) } : cat
+              );
+              next = next.map(cat => {
+                if (cat.id !== tgt.catId) return cat;
+                if (!tgt.beforeItemId) return { ...cat, items: [...cat.items, item] };
+                const idx = cat.items.findIndex(i => i.id === tgt.beforeItemId);
+                if (idx === -1) return { ...cat, items: [...cat.items, item] };
+                const items = [...cat.items];
+                items.splice(idx, 0, item);
+                return { ...cat, items };
+              });
+              return next;
+            });
+          }
+          dragRef.current = null;
+          dropRef.current = null;
+          setDragging(null);
+          setDropTarget(null);
+          setGhostPos(null);
+        };
+
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        return () => {
+          window.removeEventListener("pointermove", onMove);
+          window.removeEventListener("pointerup", onUp);
+        };
+      }, []);
+
+      // ── PERSISTANCE ───────────────────────────────────────────────────────
       useEffect(() => {
         localStorage.setItem("courses_categories", JSON.stringify(categories));
       }, [categories]);
@@ -340,6 +422,7 @@
         localStorage.setItem("courses_custom_cart", JSON.stringify(customCartItems));
       }, [customCartItems]);
 
+      // ── HANDLERS ──────────────────────────────────────────────────────────
       const toggleItem = (catId, itemId) =>
         setCategories(cats => cats.map(cat =>
           cat.id === catId
@@ -414,14 +497,25 @@
 
       // ── RENDER ──────────────────────────────────────────────────────────────
       return (
-        <div style={{ minHeight:"100vh", background:"#0f0f0f", color:"#f0ede8", fontFamily:"Georgia,serif", maxWidth:480, margin:"0 auto", paddingBottom:120 }}>
+        <div style={{ minHeight:"100vh", background:"#ffffff", color:"#1a1a1a", fontFamily:"Georgia,serif", maxWidth:480, margin:"0 auto", paddingBottom:120 }}>
+
+          {/* Ghost drag */}
+          {ghostPos && (
+            <div ref={ghostDivRef} style={{
+              position:"fixed", left:ghostPos.x + 14, top:ghostPos.y - 14,
+              background:"#ffffff", border:"2px solid #c8a96e", borderRadius:8,
+              padding:"6px 14px", fontSize:15, color:"#1a1a1a",
+              pointerEvents:"none", zIndex:9999,
+              boxShadow:"0 4px 16px rgba(0,0,0,0.15)", whiteSpace:"nowrap",
+            }}>{dragging?.name}</div>
+          )}
 
           {/* ── HEADER ── */}
-          <div style={{ padding:"24px 20px 14px", borderBottom:"1px solid #222", position:"sticky", top:0, background:"#0f0f0f", zIndex:10 }}>
+          <div style={{ padding:"24px 20px 14px", borderBottom:"1px solid #e5e5e5", position:"sticky", top:0, background:"#ffffff", zIndex:10 }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div>
-                <div style={{ fontSize:10, letterSpacing:3, color:"#555", textTransform:"uppercase", marginBottom:3 }}>Liste de courses</div>
-                <h1 style={{ margin:0, fontSize:20, fontWeight:"normal" }}>
+                <div style={{ fontSize:11, letterSpacing:3, color:"#999", textTransform:"uppercase", marginBottom:3 }}>Liste de courses</div>
+                <h1 style={{ margin:0, fontSize:22, fontWeight:"normal" }}>
                   {view === "cart" ? `🛒 Panier (${totalChecked})` : "Tous les rayons"}
                 </h1>
               </div>
@@ -429,16 +523,16 @@
                 {view === "list" && (
                   <button onClick={() => setShowFrequentOnly(f => !f)} style={{
                     background: showFrequentOnly ? "#c8a96e" : "transparent",
-                    border: `1px solid ${showFrequentOnly ? "#c8a96e" : "#444"}`,
-                    color: showFrequentOnly ? "#0f0f0f" : "#888",
-                    borderRadius:20, padding:"5px 10px", fontSize:11, cursor:"pointer",
+                    border: `1px solid ${showFrequentOnly ? "#c8a96e" : "#ccc"}`,
+                    color: showFrequentOnly ? "#ffffff" : "#999",
+                    borderRadius:20, padding:"5px 10px", fontSize:13, cursor:"pointer",
                   }}>★ fréquents</button>
                 )}
                 <button onClick={() => setView(v => v === "list" ? "cart" : "list")} style={{
-                  background: view === "cart" ? "#c8a96e" : "#1a1a1a",
-                  border: `1px solid ${view === "cart" ? "#c8a96e" : "#333"}`,
-                  color: view === "cart" ? "#0f0f0f" : "#f0ede8",
-                  borderRadius:20, padding:"6px 14px", fontSize:12, cursor:"pointer", fontFamily:"Georgia,serif",
+                  background: view === "cart" ? "#c8a96e" : "#f5f5f5",
+                  border: `1px solid ${view === "cart" ? "#c8a96e" : "#e0e0e0"}`,
+                  color: view === "cart" ? "#ffffff" : "#1a1a1a",
+                  borderRadius:20, padding:"6px 14px", fontSize:14, cursor:"pointer", fontFamily:"Georgia,serif",
                 }}>
                   {view === "list" ? `🛒 ${totalChecked}` : "← Liste"}
                 </button>
@@ -449,17 +543,17 @@
             {view === "list" && (
               <div style={{ display:"flex", gap:6, marginTop:12, flexWrap:"wrap" }}>
                 <button onClick={() => setFilterStore("all")} style={{
-                  background: filterStore === "all" ? "#f0ede8" : "transparent",
-                  border: `1px solid ${filterStore === "all" ? "#f0ede8" : "#333"}`,
-                  color: filterStore === "all" ? "#0f0f0f" : "#666",
-                  borderRadius:20, padding:"4px 12px", fontSize:11, cursor:"pointer",
+                  background: filterStore === "all" ? "#1a1a1a" : "transparent",
+                  border: `1px solid ${filterStore === "all" ? "#1a1a1a" : "#ccc"}`,
+                  color: filterStore === "all" ? "#ffffff" : "#888",
+                  borderRadius:20, padding:"4px 12px", fontSize:13, cursor:"pointer",
                 }}>Tous</button>
                 {STORES.map(s => (
                   <button key={s.id} onClick={() => setFilterStore(filterStore === s.id ? "all" : s.id)} style={{
                     background: filterStore === s.id ? s.color : "transparent",
-                    border: `1px solid ${filterStore === s.id ? s.color : "#333"}`,
-                    color: filterStore === s.id ? "#0f0f0f" : "#666",
-                    borderRadius:20, padding:"4px 12px", fontSize:11, cursor:"pointer",
+                    border: `1px solid ${filterStore === s.id ? s.color : "#ccc"}`,
+                    color: filterStore === s.id ? "#ffffff" : "#888",
+                    borderRadius:20, padding:"4px 12px", fontSize:13, cursor:"pointer",
                   }}>{s.label}</button>
                 ))}
               </div>
@@ -470,35 +564,35 @@
           {view === "cart" && (
             <div style={{ padding:"16px 20px" }}>
               {cartByStore.length === 0 ? (
-                <div style={{ textAlign:"center", color:"#555", marginTop:60 }}>Aucun article sélectionné.</div>
+                <div style={{ textAlign:"center", color:"#aaa", marginTop:60 }}>Aucun article sélectionné.</div>
               ) : (
                 <>
                   {cartByStore.map(store => (
                     <div key={store.id} style={{ marginBottom:32 }}>
-                      <div style={{ fontSize:13, color:store.color, marginBottom:12, borderBottom:"1px solid #222", paddingBottom:8, display:"flex", justifyContent:"space-between" }}>
+                      <div style={{ fontSize:15, color:store.color, marginBottom:12, borderBottom:`2px solid ${store.color}`, paddingBottom:8, display:"flex", justifyContent:"space-between" }}>
                         <span>{store.label}</span>
-                        <span style={{ color:"#555", fontSize:11 }}>{store.items.length} article{store.items.length > 1 ? "s" : ""}</span>
+                        <span style={{ color:"#aaa", fontSize:13 }}>{store.items.length} article{store.items.length > 1 ? "s" : ""}</span>
                       </div>
                       {store.items.map(item => (
-                        <div key={item.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"9px 0", borderBottom:"1px solid #1a1a1a" }}>
+                        <div key={item.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:"1px solid #eeeeee" }}>
                           <div>
-                            <div style={{ fontSize:15 }}>{item.name}</div>
-                            <div style={{ fontSize:10, color:"#444", marginTop:2 }}>{item.catLabel}</div>
+                            <div style={{ fontSize:17 }}>{item.name}</div>
+                            {item.catLabel && <div style={{ fontSize:12, color:"#aaa", marginTop:2 }}>{item.catLabel}</div>}
                           </div>
-                          <button onClick={() => item.catId ? toggleItem(item.catId, item.id) : removeCustomCartItem(item.id)} style={{ background:"none", border:"none", color:"#555", cursor:"pointer", fontSize:16, padding:"4px 8px" }}>✕</button>
+                          <button onClick={() => item.catId ? toggleItem(item.catId, item.id) : removeCustomCartItem(item.id)} style={{ background:"none", border:"none", color:"#e53935", cursor:"pointer", fontSize:18, padding:"4px 8px" }}>✕</button>
                         </div>
                       ))}
                     </div>
                   ))}
-                  <button onClick={clearCart} style={{ width:"100%", marginTop:8, padding:"14px", background:"transparent", border:"1px solid #282828", color:"#555", borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif", fontSize:13 }}>
+                  <button onClick={clearCart} style={{ width:"100%", marginTop:8, padding:"14px", background:"transparent", border:"1px solid #e0e0e0", color:"#aaa", borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif", fontSize:15 }}>
                     Vider le panier
                   </button>
                 </>
               )}
 
               {/* Ajout libre dans le panier */}
-              <div style={{ marginTop:32, borderTop:"1px solid #1a1a1a", paddingTop:20 }}>
-                <div style={{ fontSize:10, letterSpacing:2, color:"#555", textTransform:"uppercase", marginBottom:10 }}>Ajouter un article</div>
+              <div style={{ marginTop:32, borderTop:"1px solid #e5e5e5", paddingTop:20 }}>
+                <div style={{ fontSize:11, letterSpacing:2, color:"#aaa", textTransform:"uppercase", marginBottom:10 }}>Ajouter un article</div>
                 <div style={{ display:"flex", gap:8, marginBottom:8 }}>
                   <input
                     ref={customInputRef}
@@ -506,17 +600,17 @@
                     onChange={e => setCustomName(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && addCustomCartItem()}
                     placeholder="Ex : Tabasco, Chips..."
-                    style={{ flex:1, background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:8, padding:"10px 12px", color:"#f0ede8", fontFamily:"Georgia,serif", fontSize:14, outline:"none" }}
+                    style={{ flex:1, background:"#f5f5f5", border:"1px solid #e0e0e0", borderRadius:8, padding:"10px 12px", color:"#1a1a1a", fontFamily:"Georgia,serif", fontSize:16, outline:"none" }}
                   />
-                  <button onClick={addCustomCartItem} style={{ background:"#c8a96e", border:"none", borderRadius:8, padding:"10px 16px", color:"#0f0f0f", cursor:"pointer", fontSize:18, fontWeight:"bold" }}>+</button>
+                  <button onClick={addCustomCartItem} style={{ background:"#c8a96e", border:"none", borderRadius:8, padding:"10px 16px", color:"#ffffff", cursor:"pointer", fontSize:20, fontWeight:"bold" }}>+</button>
                 </div>
                 <div style={{ display:"flex", gap:6 }}>
                   {STORES.map(s => (
                     <button key={s.id} onClick={() => setCustomStore(s.id)} style={{
                       background: customStore === s.id ? s.color : "transparent",
-                      border: `1px solid ${customStore === s.id ? s.color : "#333"}`,
-                      color: customStore === s.id ? "#0f0f0f" : s.color,
-                      borderRadius:20, padding:"4px 10px", fontSize:11, cursor:"pointer", flex:1,
+                      border: `1px solid ${customStore === s.id ? s.color : "#ccc"}`,
+                      color: customStore === s.id ? "#ffffff" : s.color,
+                      borderRadius:20, padding:"4px 8px", fontSize:12, cursor:"pointer", flex:1,
                     }}>{s.label}</button>
                   ))}
                 </div>
@@ -534,18 +628,20 @@
                 if (visibleItems.length === 0) return null;
                 const checkedCount = visibleItems.filter(i => i.checked).length;
                 const isExpanded = expandedCats[cat.id];
+                const isDropTarget = dropTarget?.catId === cat.id && !dropTarget?.beforeItemId;
 
                 return (
-                  <div key={cat.id} style={{ marginBottom:1 }}>
+                  <div key={cat.id} data-cat-id={cat.id} style={{ marginBottom:1 }}>
                     {/* Entête catégorie */}
                     <div onClick={() => toggleCat(cat.id)} style={{
-                      padding:"11px 20px", display:"flex", justifyContent:"space-between", alignItems:"center",
-                      cursor:"pointer", borderBottom:"1px solid #1a1a1a",
-                      background: checkedCount > 0 ? "#111a10" : "#0a0a0a",
+                      padding:"12px 20px", display:"flex", justifyContent:"space-between", alignItems:"center",
+                      cursor:"pointer", borderBottom:"1px solid #e5e5e5",
+                      background: isDropTarget ? "#fff8e8" : checkedCount > 0 ? "#f0f7ee" : "#f8f8f8",
+                      borderLeft: isDropTarget ? "3px solid #c8a96e" : "3px solid transparent",
                     }}>
-                      <span style={{ fontSize:11, letterSpacing:2, color:"#c8a96e", textTransform:"uppercase" }}>{cat.label}</span>
-                      <span style={{ fontSize:11, color:"#555" }}>
-                        {checkedCount > 0 && <span style={{ color:"#6a9e5a", marginRight:8 }}>✓{checkedCount}</span>}
+                      <span style={{ fontSize:13, letterSpacing:2, color:"#c8a96e", textTransform:"uppercase" }}>{cat.label}</span>
+                      <span style={{ fontSize:13, color:"#aaa" }}>
+                        {checkedCount > 0 && <span style={{ color:"#5a8e4a", marginRight:8 }}>✓{checkedCount}</span>}
                         {isExpanded ? "▲" : "▼"}
                       </span>
                     </div>
@@ -553,53 +649,71 @@
                     {isExpanded && visibleItems.map(item => {
                       const store = storeInfo(item.store);
                       const isEditingThis = editingStore === item.id;
+                      const isBeforeTarget = dropTarget?.catId === cat.id && dropTarget?.beforeItemId === item.id;
+                      const isDraggingThis = dragging?.itemId === item.id && dragging?.catId === cat.id;
                       return (
                         <div key={item.id}>
-                          <div style={{ display:"flex", alignItems:"center", padding:"8px 20px", borderBottom:"1px solid #111", background: item.checked ? "#0d160c" : "transparent" }}>
+                          <div
+                            data-item-id={item.id}
+                            data-cat-id={cat.id}
+                            style={{
+                              display:"flex", alignItems:"center", padding:"9px 20px",
+                              borderBottom:"1px solid #eeeeee",
+                              borderTop: isBeforeTarget ? "2px solid #c8a96e" : "1px solid transparent",
+                              background: item.checked ? "#f0f7ee" : "#ffffff",
+                              opacity: isDraggingThis ? 0.3 : 1,
+                            }}
+                          >
+                            {/* Poignée de déplacement */}
+                            <div
+                              onPointerDown={e => startDrag(e, cat.id, item.id, item.name)}
+                              style={{ touchAction:"none", cursor:"grab", color:"#ccc", fontSize:16, marginRight:10, flexShrink:0, userSelect:"none", padding:"2px 4px" }}
+                            >⠿</div>
+
                             {/* Checkbox */}
                             <div onClick={() => toggleItem(cat.id, item.id)} style={{
-                              width:19, height:19, borderRadius:4,
-                              border: item.checked ? "none" : "1px solid #333",
-                              background: item.checked ? "#6a9e5a" : "transparent",
+                              width:20, height:20, borderRadius:4,
+                              border: item.checked ? "none" : "1px solid #ccc",
+                              background: item.checked ? "#5a8e4a" : "transparent",
                               display:"flex", alignItems:"center", justifyContent:"center",
-                              cursor:"pointer", flexShrink:0, marginRight:11, fontSize:11,
+                              cursor:"pointer", flexShrink:0, marginRight:12, fontSize:12, color:"#ffffff",
                             }}>{item.checked && "✓"}</div>
 
                             {/* Nom */}
                             <span onClick={() => toggleItem(cat.id, item.id)} style={{
-                              flex:1, fontSize:14, cursor:"pointer",
+                              flex:1, fontSize:16, cursor:"pointer",
                               textDecoration: item.checked ? "line-through" : "none",
-                              color: item.checked ? "#3a3a3a" : "#f0ede8",
+                              color: item.checked ? "#bbb" : "#1a1a1a",
                             }}>{item.name}</span>
 
                             {/* Badge magasin */}
                             <button onClick={() => setEditingStore(isEditingThis ? null : item.id)} style={{
-                              background:"transparent", border:"1px solid #222", borderRadius:12,
-                              padding:"2px 8px", fontSize:10, color:store.color,
+                              background:"transparent", border:`1px solid ${store.color}`, borderRadius:12,
+                              padding:"2px 8px", fontSize:12, color:store.color,
                               cursor:"pointer", marginRight:6, whiteSpace:"nowrap",
                             }}>{store.label.split(" ")[0]}</button>
 
                             {/* Étoile */}
                             <button onClick={() => toggleFrequent(cat.id, item.id)} style={{
                               background:"none", border:"none", cursor:"pointer",
-                              fontSize:13, color: item.frequent ? "#c8a96e" : "#222", padding:3,
+                              fontSize:14, color: item.frequent ? "#c8a96e" : "#ddd", padding:3,
                             }}>★</button>
 
                             {/* Supprimer */}
                             <button onClick={() => deleteItem(cat.id, item.id)} style={{
-                              background:"none", border:"none", cursor:"pointer", fontSize:11, color:"#222", padding:3,
+                              background:"none", border:"none", cursor:"pointer", fontSize:14, color:"#e53935", padding:3,
                             }}>✕</button>
                           </div>
 
                           {/* Sélecteur magasin */}
                           {isEditingThis && (
-                            <div style={{ display:"flex", gap:6, padding:"8px 20px 8px 50px", background:"#111", borderBottom:"1px solid #111" }}>
+                            <div style={{ display:"flex", gap:6, padding:"8px 20px 8px 54px", background:"#f8f8f8", borderBottom:"1px solid #eeeeee", flexWrap:"wrap" }}>
                               {STORES.map(s => (
                                 <button key={s.id} onClick={() => setItemStore(cat.id, item.id, s.id)} style={{
                                   background: item.store === s.id ? s.color : "transparent",
-                                  border: `1px solid ${item.store === s.id ? s.color : "#333"}`,
-                                  color: item.store === s.id ? "#0f0f0f" : s.color,
-                                  borderRadius:20, padding:"4px 10px", fontSize:11, cursor:"pointer",
+                                  border: `1px solid ${item.store === s.id ? s.color : "#ccc"}`,
+                                  color: item.store === s.id ? "#ffffff" : s.color,
+                                  borderRadius:20, padding:"4px 10px", fontSize:13, cursor:"pointer",
                                 }}>{s.label}</button>
                               ))}
                             </div>
@@ -612,31 +726,31 @@
               })}
 
               {/* Ajouter un article */}
-              <div style={{ padding:"20px", borderTop:"1px solid #1a1a1a", marginTop:16 }}>
-                <div style={{ fontSize:10, letterSpacing:2, color:"#555", textTransform:"uppercase", marginBottom:10 }}>Ajouter un article</div>
+              <div style={{ padding:"20px", borderTop:"1px solid #e5e5e5", marginTop:16 }}>
+                <div style={{ fontSize:11, letterSpacing:2, color:"#aaa", textTransform:"uppercase", marginBottom:10 }}>Ajouter un article</div>
                 <div style={{ display:"flex", gap:8, marginBottom:8 }}>
                   <input
                     value={newItemName}
                     onChange={e => setNewItemName(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && addItem()}
                     placeholder="Nom de l'article..."
-                    style={{ flex:1, background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:8, padding:"10px 12px", color:"#f0ede8", fontFamily:"Georgia,serif", fontSize:14, outline:"none" }}
+                    style={{ flex:1, background:"#f5f5f5", border:"1px solid #e0e0e0", borderRadius:8, padding:"10px 12px", color:"#1a1a1a", fontFamily:"Georgia,serif", fontSize:16, outline:"none" }}
                   />
-                  <button onClick={addItem} style={{ background:"#c8a96e", border:"none", borderRadius:8, padding:"10px 16px", color:"#0f0f0f", cursor:"pointer", fontSize:18, fontWeight:"bold" }}>+</button>
+                  <button onClick={addItem} style={{ background:"#c8a96e", border:"none", borderRadius:8, padding:"10px 16px", color:"#ffffff", cursor:"pointer", fontSize:20, fontWeight:"bold" }}>+</button>
                 </div>
-                <div style={{ display:"flex", gap:6, marginBottom:8 }}>
+                <div style={{ display:"flex", gap:6, marginBottom:8, flexWrap:"wrap" }}>
                   {STORES.map(s => (
                     <button key={s.id} onClick={() => setNewItemStore(s.id)} style={{
                       background: newItemStore === s.id ? s.color : "transparent",
-                      border: `1px solid ${newItemStore === s.id ? s.color : "#333"}`,
-                      color: newItemStore === s.id ? "#0f0f0f" : s.color,
-                      borderRadius:20, padding:"4px 10px", fontSize:11, cursor:"pointer", flex:1,
+                      border: `1px solid ${newItemStore === s.id ? s.color : "#ccc"}`,
+                      color: newItemStore === s.id ? "#ffffff" : s.color,
+                      borderRadius:20, padding:"4px 10px", fontSize:13, cursor:"pointer",
                     }}>{s.label}</button>
                   ))}
                 </div>
                 <select value={newItemCat} onChange={e => setNewItemCat(e.target.value)} style={{
-                  width:"100%", background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:8,
-                  padding:"10px 12px", color:"#666", fontFamily:"Georgia,serif", fontSize:13, outline:"none",
+                  width:"100%", background:"#f5f5f5", border:"1px solid #e0e0e0", borderRadius:8,
+                  padding:"10px 12px", color:"#666", fontFamily:"Georgia,serif", fontSize:15, outline:"none",
                 }}>
                   {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
                 </select>
