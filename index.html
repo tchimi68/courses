@@ -22,7 +22,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useRef } = React;
+    const { useState, useRef, useEffect } = React;
 
     // ─── CONFIGURATION MAGASINS ───────────────────────────────────────────────
     const STORES = [
@@ -300,12 +300,16 @@
 
     // ─── COMPOSANT PRINCIPAL ──────────────────────────────────────────────────
     function GroceryApp() {
-      const [categories, setCategories] = useState(
-        initialCategories.map(cat => ({
+      const [categories, setCategories] = useState(() => {
+        try {
+          const saved = localStorage.getItem("courses_categories");
+          if (saved) return JSON.parse(saved);
+        } catch {}
+        return initialCategories.map(cat => ({
           ...cat,
           items: cat.items.map(item => ({ ...item, checked: false })),
-        }))
-      );
+        }));
+      });
       const [view, setView]                   = useState("list");
       const [newItemName, setNewItemName]     = useState("");
       const [newItemCat, setNewItemCat]       = useState("legumes");
@@ -317,10 +321,24 @@
         Object.fromEntries(initialCategories.map(c => [c.id, true]))
       );
       const [editingStore, setEditingStore]   = useState(null);
-      const [customCartItems, setCustomCartItems] = useState([]);
+      const [customCartItems, setCustomCartItems] = useState(() => {
+        try {
+          const saved = localStorage.getItem("courses_custom_cart");
+          if (saved) return JSON.parse(saved);
+        } catch {}
+        return [];
+      });
       const [customName, setCustomName]       = useState("");
       const [customStore, setCustomStore]     = useState("super");
       const customInputRef = useRef(null);
+
+      useEffect(() => {
+        localStorage.setItem("courses_categories", JSON.stringify(categories));
+      }, [categories]);
+
+      useEffect(() => {
+        localStorage.setItem("courses_custom_cart", JSON.stringify(customCartItems));
+      }, [customCartItems]);
 
       const toggleItem = (catId, itemId) =>
         setCategories(cats => cats.map(cat =>
