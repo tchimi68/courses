@@ -22,7 +22,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState } = React;
+    const { useState, useRef } = React;
 
     // ─── CONFIGURATION MAGASINS ───────────────────────────────────────────────
     const STORES = [
@@ -317,6 +317,10 @@
         Object.fromEntries(initialCategories.map(c => [c.id, true]))
       );
       const [editingStore, setEditingStore]   = useState(null);
+      const [customCartItems, setCustomCartItems] = useState([]);
+      const [customName, setCustomName]       = useState("");
+      const [customStore, setCustomStore]     = useState("super");
+      const customInputRef = useRef(null);
 
       const toggleItem = (catId, itemId) =>
         setCategories(cats => cats.map(cat =>
@@ -359,15 +363,30 @@
         setNewItemName("");
       };
 
-      const clearCart = () =>
+      const addCustomCartItem = () => {
+        if (!customName.trim()) return;
+        setCustomCartItems(items => [...items, { id: `c_${Date.now()}`, name: customName.trim(), store: customStore }]);
+        setCustomName("");
+        customInputRef.current?.focus();
+      };
+
+      const removeCustomCartItem = (id) =>
+        setCustomCartItems(items => items.filter(i => i.id !== id));
+
+      const clearCart = () => {
         setCategories(cats => cats.map(cat => ({ ...cat, items: cat.items.map(i => ({ ...i, checked: false })) })));
+        setCustomCartItems([]);
+      };
 
       const toggleCat = (catId) =>
         setExpandedCats(e => ({ ...e, [catId]: !e[catId] }));
 
-      const allChecked = categories.flatMap(cat =>
-        cat.items.filter(i => i.checked).map(i => ({ ...i, catLabel: cat.label, catId: cat.id }))
-      );
+      const allChecked = [
+        ...categories.flatMap(cat =>
+          cat.items.filter(i => i.checked).map(i => ({ ...i, catLabel: cat.label, catId: cat.id }))
+        ),
+        ...customCartItems.map(i => ({ ...i, catLabel: null, catId: null })),
+      ];
       const totalChecked = allChecked.length;
 
       const cartByStore = STORES.map(s => ({
@@ -448,7 +467,7 @@
                             <div style={{ fontSize:15 }}>{item.name}</div>
                             <div style={{ fontSize:10, color:"#444", marginTop:2 }}>{item.catLabel}</div>
                           </div>
-                          <button onClick={() => toggleItem(item.catId, item.id)} style={{ background:"none", border:"none", color:"#555", cursor:"pointer", fontSize:16, padding:"4px 8px" }}>✕</button>
+                          <button onClick={() => item.catId ? toggleItem(item.catId, item.id) : removeCustomCartItem(item.id)} style={{ background:"none", border:"none", color:"#555", cursor:"pointer", fontSize:16, padding:"4px 8px" }}>✕</button>
                         </div>
                       ))}
                     </div>
@@ -458,6 +477,32 @@
                   </button>
                 </>
               )}
+
+              {/* Ajout libre dans le panier */}
+              <div style={{ marginTop:32, borderTop:"1px solid #1a1a1a", paddingTop:20 }}>
+                <div style={{ fontSize:10, letterSpacing:2, color:"#555", textTransform:"uppercase", marginBottom:10 }}>Ajouter un article</div>
+                <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                  <input
+                    ref={customInputRef}
+                    value={customName}
+                    onChange={e => setCustomName(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && addCustomCartItem()}
+                    placeholder="Ex : Tabasco, Chips..."
+                    style={{ flex:1, background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:8, padding:"10px 12px", color:"#f0ede8", fontFamily:"Georgia,serif", fontSize:14, outline:"none" }}
+                  />
+                  <button onClick={addCustomCartItem} style={{ background:"#c8a96e", border:"none", borderRadius:8, padding:"10px 16px", color:"#0f0f0f", cursor:"pointer", fontSize:18, fontWeight:"bold" }}>+</button>
+                </div>
+                <div style={{ display:"flex", gap:6 }}>
+                  {STORES.map(s => (
+                    <button key={s.id} onClick={() => setCustomStore(s.id)} style={{
+                      background: customStore === s.id ? s.color : "transparent",
+                      border: `1px solid ${customStore === s.id ? s.color : "#333"}`,
+                      color: customStore === s.id ? "#0f0f0f" : s.color,
+                      borderRadius:20, padding:"4px 10px", fontSize:11, cursor:"pointer", flex:1,
+                    }}>{s.label}</button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
