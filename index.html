@@ -354,6 +354,8 @@
       const customInputRef = useRef(null);
       const [editingName, setEditingName]     = useState(null); // { catId, itemId }
       const [editNameValue, setEditNameValue] = useState("");
+      const [search, setSearch]               = useState("");
+      const searchInputRef                    = useRef(null);
 
       // ── HISTORIQUE (undo) ─────────────────────────────────────────────────
       const historyRef     = useRef([]);
@@ -616,9 +618,25 @@
               </div>
             </div>
 
-            {/* Filtres magasins */}
+            {/* Recherche */}
             {view === "list" && (
-              <div style={{ display:"flex", gap:6, marginTop:12, flexWrap:"wrap" }}>
+              <div style={{ marginTop:12, position:"relative" }}>
+                <input
+                  ref={searchInputRef}
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Rechercher un article..."
+                  style={{ width:"100%", background:"#f5f5f5", border:"1px solid #e0e0e0", borderRadius:8, padding:"9px 36px 9px 14px", color:"#1a1a1a", fontFamily:"Georgia,serif", fontSize:15, outline:"none" }}
+                />
+                {search && (
+                  <button onClick={() => { setSearch(""); searchInputRef.current?.focus(); }} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", color:"#aaa", cursor:"pointer", fontSize:16, lineHeight:1 }}>✕</button>
+                )}
+              </div>
+            )}
+
+            {/* Filtres magasins */}
+            {view === "list" && !search && (
+              <div style={{ display:"flex", gap:6, marginTop:10, flexWrap:"wrap" }}>
                 <button onClick={() => setFilterStore("all")} style={{
                   background: filterStore === "all" ? "#1a1a1a" : "transparent",
                   border: `1px solid ${filterStore === "all" ? "#1a1a1a" : "#ccc"}`,
@@ -702,8 +720,57 @@
             </div>
           )}
 
+          {/* ── VUE LISTE — RÉSULTATS RECHERCHE ── */}
+          {view === "list" && search && (
+            <div style={{ padding:"6px 0" }}>
+              {(() => {
+                const q = search.toLowerCase();
+                const results = categories.flatMap(cat =>
+                  cat.items
+                    .filter(i => i.name.toLowerCase().includes(q))
+                    .map(i => ({ ...i, catLabel: cat.label, catId: cat.id }))
+                );
+                if (results.length === 0) return (
+                  <div style={{ textAlign:"center", color:"#aaa", marginTop:60, fontSize:15 }}>Aucun résultat pour « {search} »</div>
+                );
+                return results.map(item => {
+                  const store = storeInfo(item.store);
+                  const isEditingThis = editingName?.itemId === item.id && editingName?.catId === item.catId;
+                  return (
+                    <div key={item.id}>
+                      <div style={{ display:"flex", alignItems:"center", padding:"9px 20px", borderBottom:"1px solid #eeeeee", background: item.checked ? "#f0f7ee" : "#ffffff" }}>
+                        <div style={{ width:20, height:20, borderRadius:4, border: item.checked ? "none" : "1px solid #ccc", background: item.checked ? "#5a8e4a" : "transparent", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0, marginRight:12, fontSize:12, color:"#ffffff" }}
+                          onClick={() => toggleItem(item.catId, item.id)}>{item.checked && "✓"}</div>
+                        <div style={{ flex:1 }}>
+                          {isEditingThis ? (
+                            <input autoFocus value={editNameValue} onChange={e => setEditNameValue(e.target.value)}
+                              onBlur={confirmEditName} onKeyDown={e => { if (e.key==="Enter") confirmEditName(); if (e.key==="Escape") setEditingName(null); }}
+                              style={{ fontSize:16, border:"none", borderBottom:"2px solid #c8a96e", outline:"none", fontFamily:"Georgia,serif", background:"transparent", color:"#1a1a1a", width:"100%" }} />
+                          ) : (
+                            <span onClick={() => startEditName(item.catId, item.id, item.name)} style={{ fontSize:16, cursor:"text", textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#bbb" : "#1a1a1a" }}>{item.name}</span>
+                          )}
+                          <div style={{ fontSize:12, color:"#aaa", marginTop:2 }}>{item.catLabel}</div>
+                        </div>
+                        <button onClick={() => setEditingStore(editingStore===item.id ? null : item.id)} style={{ background:"transparent", border:`1px solid ${store.color}`, borderRadius:12, padding:"2px 8px", fontSize:12, color:store.color, cursor:"pointer", marginRight:6, whiteSpace:"nowrap" }}>{store.label.split(" ")[0]}</button>
+                        <button onClick={() => toggleFrequent(item.catId, item.id)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:14, color: item.frequent ? "#c8a96e" : "#ddd", padding:3 }}>★</button>
+                        <button onClick={() => deleteItem(item.catId, item.id)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:14, color:"#e53935", padding:3 }}>✕</button>
+                      </div>
+                      {editingStore === item.id && (
+                        <div style={{ display:"flex", gap:6, padding:"8px 20px 8px 54px", background:"#f8f8f8", borderBottom:"1px solid #eeeeee", flexWrap:"wrap" }}>
+                          {STORES.map(s => (
+                            <button key={s.id} onClick={() => setItemStore(item.catId, item.id, s.id)} style={{ background: item.store===s.id ? s.color : "transparent", border:`1px solid ${item.store===s.id ? s.color : "#ccc"}`, color: item.store===s.id ? "#ffffff" : s.color, borderRadius:20, padding:"4px 10px", fontSize:13, cursor:"pointer" }}>{s.label}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
+
           {/* ── VUE LISTE ── */}
-          {view === "list" && (
+          {view === "list" && !search && (
             <div style={{ padding:"6px 0" }}>
               {categories.map(cat => {
                 let visibleItems = cat.items;
