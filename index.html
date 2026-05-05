@@ -331,6 +331,26 @@
       const [customStore, setCustomStore]     = useState("super");
       const customInputRef = useRef(null);
 
+      // ── HISTORIQUE (undo) ─────────────────────────────────────────────────
+      const historyRef     = useRef([]);
+      const categoriesRef  = useRef(categories);
+      const [canUndo, setCanUndo] = useState(false);
+      useEffect(() => { categoriesRef.current = categories; }, [categories]);
+
+      const updateCategories = (updaterOrValue) => {
+        historyRef.current = [...historyRef.current.slice(-29), categoriesRef.current];
+        setCanUndo(true);
+        setCategories(updaterOrValue);
+      };
+
+      const undo = () => {
+        if (!historyRef.current.length) return;
+        const prev = historyRef.current[historyRef.current.length - 1];
+        historyRef.current = historyRef.current.slice(0, -1);
+        setCanUndo(historyRef.current.length > 0);
+        setCategories(prev);
+      };
+
       // ── DRAG & DROP ────────────────────────────────────────────────────────
       const dragRef      = useRef(null);  // { catId, itemId }
       const dropRef      = useRef(null);  // { catId, beforeItemId }
@@ -380,7 +400,7 @@
           const src = dragRef.current;
           const tgt = dropRef.current;
           if (tgt && !(tgt.catId === src.catId && tgt.beforeItemId === src.itemId)) {
-            setCategories(cats => {
+            updateCategories(cats => {
               const item = cats.find(c => c.id === src.catId)?.items.find(i => i.id === src.itemId);
               if (!item) return cats;
               let next = cats.map(cat =>
@@ -424,14 +444,14 @@
 
       // ── HANDLERS ──────────────────────────────────────────────────────────
       const toggleItem = (catId, itemId) =>
-        setCategories(cats => cats.map(cat =>
+        updateCategories(cats => cats.map(cat =>
           cat.id === catId
             ? { ...cat, items: cat.items.map(i => i.id === itemId ? { ...i, checked: !i.checked } : i) }
             : cat
         ));
 
       const setItemStore = (catId, itemId, store) => {
-        setCategories(cats => cats.map(cat =>
+        updateCategories(cats => cats.map(cat =>
           cat.id === catId
             ? { ...cat, items: cat.items.map(i => i.id === itemId ? { ...i, store } : i) }
             : cat
@@ -440,14 +460,14 @@
       };
 
       const toggleFrequent = (catId, itemId) =>
-        setCategories(cats => cats.map(cat =>
+        updateCategories(cats => cats.map(cat =>
           cat.id === catId
             ? { ...cat, items: cat.items.map(i => i.id === itemId ? { ...i, frequent: !i.frequent } : i) }
             : cat
         ));
 
       const deleteItem = (catId, itemId) =>
-        setCategories(cats => cats.map(cat =>
+        updateCategories(cats => cats.map(cat =>
           cat.id === catId
             ? { ...cat, items: cat.items.filter(i => i.id !== itemId) }
             : cat
@@ -455,7 +475,7 @@
 
       const addItem = () => {
         if (!newItemName.trim()) return;
-        setCategories(cats => cats.map(cat =>
+        updateCategories(cats => cats.map(cat =>
           cat.id === newItemCat
             ? { ...cat, items: [...cat.items, { id: nextId, name: newItemName.trim(), checked: true, frequent: false, store: newItemStore }] }
             : cat
@@ -475,7 +495,7 @@
         setCustomCartItems(items => items.filter(i => i.id !== id));
 
       const clearCart = () => {
-        setCategories(cats => cats.map(cat => ({ ...cat, items: cat.items.map(i => ({ ...i, checked: false })) })));
+        updateCategories(cats => cats.map(cat => ({ ...cat, items: cat.items.map(i => ({ ...i, checked: false })) })));
         setCustomCartItems([]);
       };
 
@@ -520,6 +540,12 @@
                 </h1>
               </div>
               <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                {canUndo && (
+                  <button onClick={undo} style={{
+                    background:"transparent", border:"1px solid #e53935",
+                    color:"#e53935", borderRadius:20, padding:"5px 10px", fontSize:13, cursor:"pointer",
+                  }}>↩ Annuler</button>
+                )}
                 {view === "list" && (
                   <button onClick={() => setShowFrequentOnly(f => !f)} style={{
                     background: showFrequentOnly ? "#c8a96e" : "transparent",
