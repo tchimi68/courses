@@ -363,7 +363,7 @@
         return 500;
       });
       const [expandedCats, setExpandedCats]   = useState(() =>
-        Object.fromEntries(initialCategories.map(c => [c.id, true]))
+        Object.fromEntries(initialCategories.map(c => [c.id, false]))
       );
       const [editingStore, setEditingStore]   = useState(null);
       const [customCartItems, setCustomCartItems] = useState([]);
