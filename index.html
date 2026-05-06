@@ -6,6 +6,8 @@
   <title>Liste de courses</title>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -21,6 +23,19 @@
 
   <script type="text/babel">
     const { useState, useRef, useEffect } = React;
+
+    // ─── FIREBASE ────────────────────────────────────────────────────────────────
+    const firebaseConfig = {
+      apiKey:            "VOTRE_API_KEY",
+      authDomain:        "VOTRE_PROJECT.firebaseapp.com",
+      databaseURL:       "https://VOTRE_PROJECT-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId:         "VOTRE_PROJECT",
+      storageBucket:     "VOTRE_PROJECT.firebasestorage.app",
+      messagingSenderId: "VOTRE_SENDER_ID",
+      appId:             "VOTRE_APP_ID",
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
     // ─── CONFIGURATION MAGASINS ───────────────────────────────────────────────
     const STORES = [
@@ -302,37 +317,34 @@
     // ─── HELPERS ──────────────────────────────────────────────────────────────
     const storeInfo = (id) => STORES.find(s => s.id === id) || STORES[0];
 
+    // ─── MIGRATION ───────────────────────────────────────────────────────────────
+    const migrateCategories = (cats) => {
+      if (cats.find(c => c.id === "legumes") && !cats.find(c => c.id === "fruits")) {
+        const fruitIds  = new Set([124,125,126,127,128,129,130,131,132,133,134]);
+        const oignonIds = new Set([113,114,115,116]);
+        const herbesIds = new Set([120,121,122,123]);
+        const old = cats.find(c => c.id === "legumes");
+        const fruitsItems = old.items.filter(i => fruitIds.has(i.id));
+        const base    = old.items.filter(i => !fruitIds.has(i.id) && !oignonIds.has(i.id) && !herbesIds.has(i.id));
+        const oignons = old.items.filter(i => oignonIds.has(i.id));
+        const herbes  = old.items.filter(i => herbesIds.has(i.id));
+        cats = cats.flatMap(c => c.id === "legumes"
+          ? [{ id:"fruits", label:"🍎 Fruits", items: fruitsItems }, { ...c, label:"🥦 Légumes", items: [...base, ...oignons, ...herbes] }]
+          : [c]);
+      }
+      cats = cats.filter(c => c.id !== "frais-pates-poisson");
+      return cats;
+    };
+
+    const defaultCategories = () => initialCategories.map(cat => ({
+      ...cat,
+      items: cat.items.map(item => ({ ...item, checked: false })),
+    }));
+
     // ─── COMPOSANT PRINCIPAL ──────────────────────────────────────────────────
     function GroceryApp() {
-      const [categories, setCategories] = useState(() => {
-        try {
-          const saved = localStorage.getItem("courses_categories");
-          if (saved) {
-            let cats = JSON.parse(saved);
-            // Migration : scinder l'ancienne catégorie "legumes" en "fruits" + "legumes"
-            if (cats.find(c => c.id === "legumes") && !cats.find(c => c.id === "fruits")) {
-              const fruitIds = new Set([124,125,126,127,128,129,130,131,132,133,134]);
-              const oignonIds = new Set([113,114,115,116]);
-              const herbesIds = new Set([120,121,122,123]);
-              const old = cats.find(c => c.id === "legumes");
-              const fruitsItems  = old.items.filter(i => fruitIds.has(i.id));
-              const base    = old.items.filter(i => !fruitIds.has(i.id) && !oignonIds.has(i.id) && !herbesIds.has(i.id));
-              const oignons = old.items.filter(i => oignonIds.has(i.id));
-              const herbes  = old.items.filter(i => herbesIds.has(i.id));
-              const newFruits  = { id:"fruits",  label:"🍎 Fruits",   items: fruitsItems };
-              const newLegumes = { ...old, label:"🥦 Légumes", items: [...base, ...oignons, ...herbes] };
-              cats = cats.flatMap(c => c.id === "legumes" ? [newFruits, newLegumes] : [c]);
-            }
-            // Migration : supprimer la catégorie vide frais-pates-poisson si présente
-            cats = cats.filter(c => c.id !== "frais-pates-poisson");
-            return cats;
-          }
-        } catch {}
-        return initialCategories.map(cat => ({
-          ...cat,
-          items: cat.items.map(item => ({ ...item, checked: false })),
-        }));
-      });
+      const [categories, setCategories] = useState(defaultCategories);
+      const [dataLoaded, setDataLoaded] = useState(false);
       const [view, setView]                   = useState("list");
       const [newItemName, setNewItemName]     = useState("");
       const [newItemCat, setNewItemCat]       = useState("legumes");
@@ -354,13 +366,7 @@
         Object.fromEntries(initialCategories.map(c => [c.id, true]))
       );
       const [editingStore, setEditingStore]   = useState(null);
-      const [customCartItems, setCustomCartItems] = useState(() => {
-        try {
-          const saved = localStorage.getItem("courses_custom_cart");
-          if (saved) return JSON.parse(saved);
-        } catch {}
-        return [];
-      });
+      const [customCartItems, setCustomCartItems] = useState([]);
       const [customName, setCustomName]       = useState("");
       const [customStore, setCustomStore]     = useState("super");
       const customInputRef = useRef(null);
@@ -372,8 +378,11 @@
       // ── HISTORIQUE (undo) ─────────────────────────────────────────────────
       const historyRef     = useRef([]);
       const categoriesRef  = useRef(categories);
+      const customCartRef  = useRef(customCartItems);
+      const dataLoadedRef  = useRef(false);
       const [canUndo, setCanUndo] = useState(false);
       useEffect(() => { categoriesRef.current = categories; }, [categories]);
+      useEffect(() => { customCartRef.current = customCartItems; }, [customCartItems]);
 
       const updateCategories = (updaterOrValue) => {
         historyRef.current = [...historyRef.current.slice(-29), categoriesRef.current];
@@ -471,14 +480,56 @@
         };
       }, []);
 
-      // ── PERSISTANCE ───────────────────────────────────────────────────────
+      // ── FIREBASE SYNC ─────────────────────────────────────────────────────
       useEffect(() => {
-        localStorage.setItem("courses_categories", JSON.stringify(categories));
-      }, [categories]);
+        // Chargement initial
+        db.ref("groceries").once("value").then(snapshot => {
+          const data = snapshot.val();
+          if (data && data.categories) {
+            const migrated = migrateCategories(data.categories);
+            setCategories(migrated);
+            if (data.customCart) setCustomCartItems(data.customCart);
+          } else {
+            // Firebase vide : migrer depuis localStorage si disponible
+            try {
+              const savedCats  = localStorage.getItem("courses_categories");
+              const savedCart  = localStorage.getItem("courses_custom_cart");
+              const initCats   = savedCats ? migrateCategories(JSON.parse(savedCats)) : defaultCategories();
+              const initCart   = savedCart ? JSON.parse(savedCart) : [];
+              setCategories(initCats);
+              setCustomCartItems(initCart);
+              db.ref("groceries/categories").set(initCats);
+              if (initCart.length) db.ref("groceries/customCart").set(initCart);
+            } catch { db.ref("groceries/categories").set(defaultCategories()); }
+          }
+          dataLoadedRef.current = true;
+          setDataLoaded(true);
+        });
+
+        // Écoute des changements en temps réel (autres appareils)
+        const ref = db.ref("groceries");
+        ref.on("value", snapshot => {
+          if (!dataLoadedRef.current) return;
+          const data = snapshot.val();
+          if (!data) return;
+          if (data.categories && JSON.stringify(data.categories) !== JSON.stringify(categoriesRef.current))
+            setCategories(data.categories);
+          if (JSON.stringify(data.customCart || []) !== JSON.stringify(customCartRef.current))
+            setCustomCartItems(data.customCart || []);
+        });
+        return () => ref.off();
+      }, []);
+
+      // Écriture Firebase à chaque changement local
+      useEffect(() => {
+        if (!dataLoaded) return;
+        db.ref("groceries/categories").set(categories);
+      }, [categories, dataLoaded]);
 
       useEffect(() => {
-        localStorage.setItem("courses_custom_cart", JSON.stringify(customCartItems));
-      }, [customCartItems]);
+        if (!dataLoaded) return;
+        db.ref("groceries/customCart").set(customCartItems.length ? customCartItems : null);
+      }, [customCartItems, dataLoaded]);
 
       // ── HANDLERS ──────────────────────────────────────────────────────────
       const toggleItem = (catId, itemId) =>
@@ -581,6 +632,12 @@
       })).filter(s => s.items.length > 0);
 
       // ── RENDER ──────────────────────────────────────────────────────────────
+      if (!dataLoaded) return (
+        <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif", color:"#aaa", fontSize:18 }}>
+          Chargement...
+        </div>
+      );
+
       return (
         <div style={{ minHeight:"100vh", background:"#ffffff", color:"#1a1a1a", fontFamily:"Georgia,serif", maxWidth:480, margin:"0 auto", paddingBottom:120 }}>
 
