@@ -339,7 +339,17 @@
       const [newItemStore, setNewItemStore]   = useState("super");
       const [showFrequentOnly, setShowFrequentOnly] = useState(false);
       const [filterStore, setFilterStore]     = useState("all");
-      const [nextId, setNextId]               = useState(500);
+      const [nextId, setNextId]               = useState(() => {
+        try {
+          const saved = localStorage.getItem("courses_categories");
+          if (saved) {
+            const cats = JSON.parse(saved);
+            const ids = cats.flatMap(c => c.items.map(i => typeof i.id === "number" ? i.id : 0));
+            return ids.length > 0 ? Math.max(...ids) + 1 : 500;
+          }
+        } catch {}
+        return 500;
+      });
       const [expandedCats, setExpandedCats]   = useState(() =>
         Object.fromEntries(initialCategories.map(c => [c.id, true]))
       );
