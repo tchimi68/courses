@@ -801,10 +801,14 @@
           {view === "list" && search && (
             <div style={{ padding:"6px 0" }}>
               {(() => {
-                const norm = s => {
-                  const map = {é:'e',è:'e',ê:'e',ë:'e',à:'a',â:'a',ä:'a',î:'i',ï:'i',ô:'o',ö:'o',ù:'u',û:'u',ü:'u',ç:'c',œ:'oe',æ:'ae'};
-                  return s.toLowerCase().split('').map(c => map[c] || c).join('');
-                };
+                const norm = s => s.toLowerCase()
+                  .replace(/œ/g,'oe').replace(/æ/g,'ae')
+                  .replace(/é/g,'e').replace(/è/g,'e').replace(/ê/g,'e').replace(/ë/g,'e')
+                  .replace(/à/g,'a').replace(/â/g,'a').replace(/ä/g,'a')
+                  .replace(/î/g,'i').replace(/ï/g,'i')
+                  .replace(/ô/g,'o').replace(/ö/g,'o')
+                  .replace(/ù/g,'u').replace(/û/g,'u').replace(/ü/g,'u')
+                  .replace(/ç/g,'c');
                 const q = norm(search);
                 const results = categories.flatMap(cat =>
                   cat.items
