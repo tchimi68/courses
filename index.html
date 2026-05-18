@@ -491,6 +491,7 @@
           const data = snapshot.val();
           if (data && data.categories) {
             const migrated = migrateCategories(data.categories);
+            if (!migrated.find(c => c.id === "autres")) migrated.push({ id: "autres", label: "📦 Autres", items: [] });
             setCategories(migrated);
             const maxId = Math.max(0, ...migrated.flatMap(c => c.items.map(i => typeof i.id === "number" ? i.id : 0)));
             setNextId(n => Math.max(n, maxId + 1));
