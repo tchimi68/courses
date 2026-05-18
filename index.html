@@ -805,9 +805,8 @@
                     .filter(i => norm(i.name).includes(q))
                     .map(i => ({ ...i, catLabel: cat.label, catId: cat.id }))
                 );
-                if (results.length === 0) return (
-                  <div style={{ textAlign:"center", color:"#aaa", marginTop:60, fontSize:15 }}>
-                    <div>Aucun résultat pour « {search} »</div>
+                const addBtn = (
+                  <div style={{ textAlign:"center", padding:"16px 20px" }}>
                     <button onClick={() => {
                       updateCategories(cats => cats.map(cat =>
                         cat.id === newItemCat
@@ -816,12 +815,18 @@
                       ));
                       setNextId(n => n + 1);
                       setSearch("");
-                    }} style={{ marginTop:16, background:"#c8a96e", border:"none", borderRadius:8, padding:"10px 20px", color:"#fff", cursor:"pointer", fontSize:15, fontFamily:"Georgia,serif" }}>
+                    }} style={{ background:"#c8a96e", border:"none", borderRadius:8, padding:"10px 20px", color:"#fff", cursor:"pointer", fontSize:15, fontFamily:"Georgia,serif" }}>
                       + Ajouter « {search} »
                     </button>
                   </div>
                 );
-                return results.map(item => {
+                if (results.length === 0) return (
+                  <div>
+                    <div style={{ textAlign:"center", color:"#aaa", marginTop:60, fontSize:15 }}>Aucun résultat pour « {search} »</div>
+                    {addBtn}
+                  </div>
+                );
+                return (<>{results.map(item => {
                   const store = storeInfo(item.store);
                   const isEditingThis = editingName?.itemId === item.id && editingName?.catId === item.catId;
                   return (
@@ -852,7 +857,7 @@
                       )}
                     </div>
                   );
-                });
+                })}{addBtn}</>);
               })()}
             </div>
           )}
