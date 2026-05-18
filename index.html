@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -795,7 +795,10 @@
           {view === "list" && search && (
             <div style={{ padding:"6px 0" }}>
               {(() => {
-                const norm = s => s.toLowerCase().replace(/œ/g, 'oe').replace(/æ/g, 'ae').normalize('NFD').replace(/[̀-ͯ]/g, '');
+                const norm = s => {
+                  const map = {é:'e',è:'e',ê:'e',ë:'e',à:'a',â:'a',ä:'a',î:'i',ï:'i',ô:'o',ö:'o',ù:'u',û:'u',ü:'u',ç:'c',œ:'oe',æ:'ae'};
+                  return s.toLowerCase().split('').map(c => map[c] || c).join('');
+                };
                 const q = norm(search);
                 const results = categories.flatMap(cat =>
                   cat.items
@@ -1014,3 +1017,4 @@
   </script>
 </body>
 </html>
+
