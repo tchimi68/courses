@@ -39,7 +39,7 @@
 
     // ─── CONFIGURATION MAGASINS ───────────────────────────────────────────────
     const STORES = [
-      { id: "super",   label: "🛒 Supermarché", color: "#1a1a1a" },
+      { id: "super",   label: "🧺 Supermarché", color: "#1a1a1a" },
       { id: "boucher", label: "🥩 Boucher",      color: "#b85c2a" },
       { id: "biocoop", label: "🌿 Biocoop",      color: "#2a7a3a" },
       { id: "picard",  label: "❄️ Picard",       color: "#1a5fa0" },
@@ -312,6 +312,10 @@
           { id: 344, name: "Jus d'orange (petit dej)", frequent: true, store: "super"  },
         ],
       },
+      {
+        id: "autres", label: "📦 Autres",
+        items: [],
+      },
     ];
 
     // ─── HELPERS ──────────────────────────────────────────────────────────────
@@ -347,7 +351,7 @@
       const [dataLoaded, setDataLoaded] = useState(false);
       const [view, setView]                   = useState("list");
       const [newItemName, setNewItemName]     = useState("");
-      const [newItemCat, setNewItemCat]       = useState("legumes");
+      const [newItemCat, setNewItemCat]       = useState("autres");
       const [newItemStore, setNewItemStore]   = useState("super");
       const [showFrequentOnly, setShowFrequentOnly] = useState(false);
       const [filterStore, setFilterStore]     = useState("all");
@@ -660,7 +664,7 @@
               <div>
                 <div style={{ fontSize:11, letterSpacing:3, color:"#999", textTransform:"uppercase", marginBottom:3 }}>Liste de courses</div>
                 <h1 style={{ margin:0, fontSize:22, fontWeight:"normal" }}>
-                  {view === "cart" ? `🛒 Panier (${totalChecked})` : "Tous les rayons"}
+                  {view === "cart" ? `🧺 Panier (${totalChecked})` : "Tous les rayons"}
                 </h1>
               </div>
               <div style={{ display:"flex", gap:8, alignItems:"center" }}>
@@ -684,7 +688,7 @@
                   color: view === "cart" ? "#ffffff" : "#1a1a1a",
                   borderRadius:20, padding:"6px 14px", fontSize:14, cursor:"pointer", fontFamily:"Georgia,serif",
                 }}>
-                  {view === "list" ? `🛒 ${totalChecked}` : "← Liste"}
+                  {view === "list" ? `🧺 ${totalChecked}` : "← Liste"}
                 </button>
               </div>
             </div>
