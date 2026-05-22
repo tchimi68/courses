@@ -380,6 +380,11 @@
       const [editNameValue, setEditNameValue] = useState("");
       const [search, setSearch]               = useState("");
       const searchInputRef                    = useRef(null);
+      const [cartStoreOrder, setCartStoreOrder] = useState({});
+      const cartStoreOrderRef = useRef({});
+      useEffect(() => { cartStoreOrderRef.current = cartStoreOrder; }, [cartStoreOrder]);
+      const allCheckedRef = useRef([]);
+      const [showClearConfirm, setShowClearConfirm] = useState(false);
 
       // ── HISTORIQUE (undo) ─────────────────────────────────────────────────
       const historyRef     = useRef([]);
@@ -412,10 +417,10 @@
       const [dropTarget, setDropTarget] = useState(null);  // { catId, beforeItemId }
       const [ghostPos,   setGhostPos]   = useState(null);  // { x, y }
 
-      const startDrag = (e, catId, itemId, name) => {
+      const startDrag = (e, catId, itemId, name, isCartDrag = false, storeId = null) => {
         e.preventDefault();
         e.stopPropagation();
-        dragRef.current = { catId, itemId };
+        dragRef.current = { catId, itemId, isCartDrag, storeId };
         setDragging({ catId, itemId, name });
         setGhostPos({ x: e.clientX, y: e.clientY });
       };
@@ -429,7 +434,9 @@
           if (ghostDivRef.current) ghostDivRef.current.style.visibility = "";
           const itemEl = el?.closest("[data-item-id]");
           if (itemEl) {
-            const tgt = { catId: itemEl.dataset.catId, beforeItemId: Number(itemEl.dataset.itemId) };
+            const rawId = itemEl.dataset.itemId;
+            const beforeItemId = (rawId && !isNaN(rawId)) ? Number(rawId) : rawId;
+            const tgt = { catId: itemEl.dataset.catId, beforeItemId, storeId: itemEl.dataset.storeId || null };
             if (tgt.catId !== dropRef.current?.catId || tgt.beforeItemId !== dropRef.current?.beforeItemId) {
               dropRef.current = tgt;
               setDropTarget({ ...tgt });
@@ -452,24 +459,47 @@
           if (!dragRef.current) return;
           const src = dragRef.current;
           const tgt = dropRef.current;
-          if (tgt && !(tgt.catId === src.catId && tgt.beforeItemId === src.itemId)) {
-            updateCategories(cats => {
-              const item = cats.find(c => c.id === src.catId)?.items.find(i => i.id === src.itemId);
-              if (!item) return cats;
-              let next = cats.map(cat =>
-                cat.id === src.catId ? { ...cat, items: cat.items.filter(i => i.id !== src.itemId) } : cat
-              );
-              next = next.map(cat => {
-                if (cat.id !== tgt.catId) return cat;
-                if (!tgt.beforeItemId) return { ...cat, items: [...cat.items, item] };
-                const idx = cat.items.findIndex(i => i.id === tgt.beforeItemId);
-                if (idx === -1) return { ...cat, items: [...cat.items, item] };
-                const items = [...cat.items];
-                items.splice(idx, 0, item);
-                return { ...cat, items };
+          if (tgt && !(tgt.catId === src.catId && String(tgt.beforeItemId) === String(src.itemId))) {
+            if (src.isCartDrag) {
+              if (tgt.storeId && tgt.storeId === src.storeId) {
+                setCartStoreOrder(order => {
+                  const storeItems = allCheckedRef.current.filter(i => i.store === src.storeId);
+                  const currentOrder = (order[src.storeId] || storeItems.map(i => i.id)).map(String);
+                  const srcStrId = String(src.itemId);
+                  const tgtStrId = tgt.beforeItemId != null ? String(tgt.beforeItemId) : null;
+                  const srcIdx = currentOrder.indexOf(srcStrId);
+                  if (srcIdx === -1) return order;
+                  const newOrder = [...currentOrder];
+                  newOrder.splice(srcIdx, 1);
+                  if (tgtStrId === null) {
+                    newOrder.push(srcStrId);
+                  } else {
+                    const tgtIdx = newOrder.indexOf(tgtStrId);
+                    if (tgtIdx === -1) newOrder.push(srcStrId);
+                    else newOrder.splice(tgtIdx, 0, srcStrId);
+                  }
+                  return { ...order, [src.storeId]: newOrder };
+                });
+              }
+            } else {
+              updateCategories(cats => {
+                const item = cats.find(c => c.id === src.catId)?.items.find(i => i.id === src.itemId);
+                if (!item) return cats;
+                let next = cats.map(cat =>
+                  cat.id === src.catId ? { ...cat, items: cat.items.filter(i => i.id !== src.itemId) } : cat
+                );
+                next = next.map(cat => {
+                  if (cat.id !== tgt.catId) return cat;
+                  if (!tgt.beforeItemId) return { ...cat, items: [...cat.items, item] };
+                  const idx = cat.items.findIndex(i => i.id === tgt.beforeItemId);
+                  if (idx === -1) return { ...cat, items: [...cat.items, item] };
+                  const items = [...cat.items];
+                  items.splice(idx, 0, item);
+                  return { ...cat, items };
+                });
+                return next;
               });
-              return next;
-            });
+            }
           }
           dragRef.current = null;
           dropRef.current = null;
@@ -497,6 +527,7 @@
             const maxId = Math.max(0, ...migrated.flatMap(c => c.items.map(i => typeof i.id === "number" ? i.id : 0)));
             setNextId(n => Math.max(n, maxId + 1));
             if (data.customCart) setCustomCartItems(data.customCart);
+            if (data.cartStoreOrder) setCartStoreOrder(data.cartStoreOrder);
           } else {
             // Firebase vide : migrer depuis localStorage si disponible
             try {
@@ -524,6 +555,8 @@
             setCategories(data.categories);
           if (JSON.stringify(data.customCart || []) !== JSON.stringify(customCartRef.current))
             setCustomCartItems(data.customCart || []);
+          if (JSON.stringify(data.cartStoreOrder || {}) !== JSON.stringify(cartStoreOrderRef.current))
+            setCartStoreOrder(data.cartStoreOrder || {});
         });
         return () => ref.off();
       }, []);
@@ -538,6 +571,11 @@
         if (!dataLoaded) return;
         db.ref("groceries/customCart").set(customCartItems.length ? customCartItems : null);
       }, [customCartItems, dataLoaded]);
+
+      useEffect(() => {
+        if (!dataLoaded) return;
+        db.ref("groceries/cartStoreOrder").set(Object.keys(cartStoreOrder).length ? cartStoreOrder : null);
+      }, [cartStoreOrder, dataLoaded]);
 
       // ── HANDLERS ──────────────────────────────────────────────────────────
       const toggleItem = (catId, itemId) =>
@@ -621,6 +659,8 @@
       const clearCart = () => {
         updateCategories(cats => cats.map(cat => ({ ...cat, items: cat.items.map(i => ({ ...i, checked: false })) })));
         setCustomCartItems([]);
+        setCartStoreOrder({});
+        setShowClearConfirm(false);
       };
 
       const toggleCat = (catId) =>
@@ -633,6 +673,20 @@
         ...customCartItems.map(i => ({ ...i, catLabel: null, catId: null })),
       ];
       const totalChecked = allChecked.length;
+      allCheckedRef.current = allChecked;
+
+      const getOrderedCartItems = (items, storeId) => {
+        const order = cartStoreOrder[storeId];
+        if (!order || order.length === 0) return items;
+        const strOrder = order.map(String);
+        const sorted = [];
+        const remaining = [...items];
+        strOrder.forEach(id => {
+          const idx = remaining.findIndex(i => String(i.id) === id);
+          if (idx !== -1) { sorted.push(remaining[idx]); remaining.splice(idx, 1); }
+        });
+        return [...sorted, ...remaining];
+      };
 
       const cartByStore = STORES.map(s => ({
         ...s,
@@ -745,8 +799,26 @@
                         <span>{store.label}</span>
                         <span style={{ color:"#aaa", fontSize:13 }}>{store.items.length} article{store.items.length > 1 ? "s" : ""}</span>
                       </div>
-                      {store.items.map(item => (
-                        <div key={`${item.catId ?? 'custom'}-${item.id}`} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:"1px solid #eeeeee", gap:12 }}>
+                      {getOrderedCartItems(store.items, store.id).map(item => {
+                        const isBeforeTarget = dropTarget?.storeId === store.id && String(dropTarget?.beforeItemId) === String(item.id);
+                        const isDraggingThis = dragging?.itemId === item.id;
+                        return (
+                        <div
+                          key={`${item.catId ?? 'custom'}-${item.id}`}
+                          data-item-id={String(item.id)}
+                          data-cat-id={item.catId ?? "__custom__"}
+                          data-store-id={item.store}
+                          style={{
+                            display:"flex", justifyContent:"space-between", alignItems:"center",
+                            padding:"10px 0", borderBottom:"1px solid #eeeeee", gap:12,
+                            borderTop: isBeforeTarget ? "2px solid #c8a96e" : "2px solid transparent",
+                            opacity: isDraggingThis ? 0.3 : 1,
+                          }}
+                        >
+                          <div
+                            onPointerDown={e => startDrag(e, item.catId ?? "__custom__", item.id, item.name, true, item.store)}
+                            style={{ touchAction:"none", cursor:"grab", color:"#ccc", fontSize:16, flexShrink:0, userSelect:"none", padding:"2px 4px" }}
+                          >⠿</div>
                           <div style={{ flex:1 }}>
                             <div style={{ fontSize:17 }}>{item.name}</div>
                             {item.catLabel && <div style={{ fontSize:12, color:"#aaa", marginTop:2 }}>{item.catLabel}</div>}
@@ -760,12 +832,24 @@
                             <button onClick={() => item.catId ? toggleItem(item.catId, item.id) : removeCustomCartItem(item.id)} style={{ background:"none", border:"none", color:"#e53935", cursor:"pointer", fontSize:18, padding:"4px 6px" }}>✕</button>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ))}
-                  <button onClick={clearCart} style={{ width:"100%", marginTop:8, padding:"14px", background:"transparent", border:"1px solid #e0e0e0", color:"#aaa", borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif", fontSize:15 }}>
-                    Vider le panier
-                  </button>
+                  {showClearConfirm ? (
+                    <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                      <button onClick={clearCart} style={{ flex:1, padding:"12px", background:"#e53935", border:"none", color:"#fff", borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif", fontSize:15 }}>
+                        Vider le panier
+                      </button>
+                      <button onClick={() => setShowClearConfirm(false)} style={{ flex:1, padding:"12px", background:"transparent", border:"1px solid #e0e0e0", color:"#aaa", borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif", fontSize:15 }}>
+                        Annuler
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setShowClearConfirm(true)} style={{ width:"100%", marginTop:8, padding:"14px", background:"transparent", border:"1px solid #e0e0e0", color:"#aaa", borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif", fontSize:15 }}>
+                      Vider le panier
+                    </button>
+                  )}
                 </>
               )}
 
