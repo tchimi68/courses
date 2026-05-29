@@ -899,6 +899,7 @@
                     .filter(i => norm(i.name).includes(q))
                     .map(i => ({ ...i, catLabel: cat.label, catId: cat.id }))
                 );
+                console.log("SEARCH q=", JSON.stringify(q), "results=", results.map(r => r.name));
                 const addBtn = (
                   <div style={{ textAlign:"center", padding:"16px 20px" }}>
                     <button onClick={() => {
