@@ -893,17 +893,10 @@
                   .replace(/ô/g,'o').replace(/ö/g,'o')
                   .replace(/ù/g,'u').replace(/û/g,'u').replace(/ü/g,'u')
                   .replace(/ç/g,'c');
-                const isSubseq = (q, text) => {
-                  let qi = 0;
-                  for (let i = 0; i < text.length && qi < q.length; i++) {
-                    if (text[i] === q[qi]) qi++;
-                  }
-                  return qi === q.length;
-                };
                 const q = norm(search);
                 const results = categories.flatMap(cat =>
                   cat.items
-                    .filter(i => isSubseq(q, norm(i.name)))
+                    .filter(i => norm(i.name).includes(q))
                     .map(i => ({ ...i, catLabel: cat.label, catId: cat.id }))
                 );
                 const addBtn = (
