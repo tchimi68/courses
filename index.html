@@ -900,6 +900,7 @@
                     .map(i => ({ ...i, catLabel: cat.label, catId: cat.id }))
                 );
                 console.log("SEARCH q=", JSON.stringify(q), "results=", results.map(r => r.name));
+                if (search) return <div style={{padding:"20px",fontFamily:"monospace",fontSize:12,background:"#fff8e8",border:"1px solid #c8a96e",margin:"10px 20px",borderRadius:8,wordBreak:"break-all"}}><b>DEBUG</b><br/>q = {JSON.stringify(q)}<br/>résultats : {results.map(r=>r.name).join(" | ") || "(aucun)"}</div>;
                 const addBtn = (
                   <div style={{ textAlign:"center", padding:"16px 20px" }}>
                     <button onClick={() => {
