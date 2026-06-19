@@ -924,7 +924,7 @@
                   const store = storeInfo(item.store);
                   const isEditingThis = editingName?.itemId === item.id && editingName?.catId === item.catId;
                   return (
-                    <div key={item.id}>
+                    <div key={`${item.catId}-${item.id}`}>
                       <div style={{ display:"flex", alignItems:"center", padding:"9px 20px", borderBottom:"1px solid #eeeeee", background: item.checked ? "#f0f7ee" : "#ffffff" }}>
                         <div style={{ width:20, height:20, borderRadius:4, border: item.checked ? "none" : "1px solid #ccc", background: item.checked ? "#5a8e4a" : "transparent", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0, marginRight:12, fontSize:12, color:"#ffffff" }}
                           onClick={() => toggleItem(item.catId, item.id)}>{item.checked && "✓"}</div>
