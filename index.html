@@ -1110,9 +1110,25 @@
       );
     }
 
+    // ─── ERROR BOUNDARY ───────────────────────────────────────────────────────
+    class ErrorBoundary extends React.Component {
+      constructor(props) { super(props); this.state = { error: null }; }
+      static getDerivedStateFromError(e) { return { error: e }; }
+      render() {
+        if (this.state.error) return (
+          <div style={{ padding:24, fontFamily:"monospace", fontSize:13, color:"#c00", background:"#fff8f8", margin:16, borderRadius:8, border:"1px solid #fcc" }}>
+            <strong>Erreur React :</strong><br/>
+            {String(this.state.error)}<br/><br/>
+            {this.state.error.stack}
+          </div>
+        );
+        return this.props.children;
+      }
+    }
+
     // ─── MOUNT ────────────────────────────────────────────────────────────────
     const root = ReactDOM.createRoot(document.getElementById("root"));
-    root.render(<GroceryApp />);
+    root.render(<ErrorBoundary><GroceryApp /></ErrorBoundary>);
   </script>
 </body>
 </html>
