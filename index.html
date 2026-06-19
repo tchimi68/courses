@@ -693,22 +693,6 @@
         items: allChecked.filter(i => i.store === s.id),
       })).filter(s => s.items.length > 0);
 
-      // ── RECHERCHE ────────────────────────────────────────────────────────────
-      const normStr = s => s.toLowerCase()
-        .replace(/œ/g,'oe').replace(/æ/g,'ae')
-        .replace(/é/g,'e').replace(/è/g,'e').replace(/ê/g,'e').replace(/ë/g,'e')
-        .replace(/à/g,'a').replace(/â/g,'a').replace(/ä/g,'a')
-        .replace(/î/g,'i').replace(/ï/g,'i')
-        .replace(/ô/g,'o').replace(/ö/g,'o')
-        .replace(/ù/g,'u').replace(/û/g,'u').replace(/ü/g,'u')
-        .replace(/ç/g,'c');
-      const searchQ = normStr(search);
-      const searchResults = search ? categories.flatMap(cat =>
-        cat.items
-          .filter(i => normStr(i.name).includes(searchQ))
-          .map(i => ({ ...i, catLabel: cat.label, catId: cat.id }))
-      ) : [];
-
       // ── RENDER ──────────────────────────────────────────────────────────────
       if (!dataLoaded) return (
         <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif", color:"#aaa", fontSize:18 }}>
@@ -900,9 +884,22 @@
           {/* ── VUE LISTE — RÉSULTATS RECHERCHE ── */}
           {view === "list" && search && (
             <div style={{ padding:"6px 0" }}>
-              {searchResults.length === 0 ? (
-                <div>
-                  <div style={{ textAlign:"center", color:"#aaa", marginTop:60, fontSize:15 }}>Aucun résultat pour « {search} »</div>
+              {(() => {
+                const norm = s => s.toLowerCase()
+                  .replace(/œ/g,'oe').replace(/æ/g,'ae')
+                  .replace(/é/g,'e').replace(/è/g,'e').replace(/ê/g,'e').replace(/ë/g,'e')
+                  .replace(/à/g,'a').replace(/â/g,'a').replace(/ä/g,'a')
+                  .replace(/î/g,'i').replace(/ï/g,'i')
+                  .replace(/ô/g,'o').replace(/ö/g,'o')
+                  .replace(/ù/g,'u').replace(/û/g,'u').replace(/ü/g,'u')
+                  .replace(/ç/g,'c');
+                const q = norm(search);
+                const results = categories.flatMap(cat =>
+                  cat.items
+                    .filter(i => norm(i.name).includes(q))
+                    .map(i => ({ ...i, catLabel: cat.label, catId: cat.id }))
+                );
+                const addBtn = (
                   <div style={{ textAlign:"center", padding:"16px 20px" }}>
                     <button onClick={() => {
                       updateCategories(cats => cats.map(cat =>
@@ -916,56 +913,46 @@
                       + Ajouter « {search} »
                     </button>
                   </div>
-                </div>
-              ) : (
-                <>
-                  {searchResults.map(item => {
-                    const store = storeInfo(item.store);
-                    const isEditingThis = editingName?.itemId === item.id && editingName?.catId === item.catId;
-                    return (
-                      <div key={`${item.catId}-${item.id}`}>
-                        <div style={{ display:"flex", alignItems:"center", padding:"9px 20px", borderBottom:"1px solid #eeeeee", background: item.checked ? "#f0f7ee" : "#ffffff" }}>
-                          <div style={{ width:20, height:20, borderRadius:4, border: item.checked ? "none" : "1px solid #ccc", background: item.checked ? "#5a8e4a" : "transparent", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0, marginRight:12, fontSize:12, color:"#ffffff" }}
-                            onClick={() => toggleItem(item.catId, item.id)}>{item.checked && "✓"}</div>
-                          <div style={{ flex:1 }}>
-                            {isEditingThis ? (
-                              <input autoFocus value={editNameValue} onChange={e => setEditNameValue(e.target.value)}
-                                onBlur={confirmEditName} onKeyDown={e => { if (e.key==="Enter") confirmEditName(); if (e.key==="Escape") setEditingName(null); }}
-                                style={{ fontSize:16, border:"none", borderBottom:"2px solid #c8a96e", outline:"none", fontFamily:"Georgia,serif", background:"transparent", color:"#1a1a1a", width:"100%" }} />
-                            ) : (
-                              <span onClick={() => startEditName(item.catId, item.id, item.name)} style={{ fontSize:16, cursor:"text", textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#bbb" : "#1a1a1a" }}>{item.name}</span>
-                            )}
-                            <div style={{ fontSize:12, color:"#aaa", marginTop:2 }}>{item.catLabel}</div>
-                          </div>
-                          <button onClick={() => setEditingStore(editingStore===item.id ? null : item.id)} style={{ background:"transparent", border:`1px solid ${store.color}`, borderRadius:12, padding:"2px 8px", fontSize:12, color:store.color, cursor:"pointer", marginRight:6, whiteSpace:"nowrap" }}>{store.label.split(" ")[0]}</button>
-                          <button onClick={() => toggleFrequent(item.catId, item.id)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:14, color: item.frequent ? "#c8a96e" : "#ddd", padding:3 }}>★</button>
-                          <button onClick={() => deleteItem(item.catId, item.id)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:14, color:"#e53935", padding:3 }}>✕</button>
+                );
+                if (results.length === 0) return (
+                  <div>
+                    <div style={{ textAlign:"center", color:"#aaa", marginTop:60, fontSize:15 }}>Aucun résultat pour « {search} »</div>
+                    {addBtn}
+                  </div>
+                );
+                return (<>{results.map(item => {
+                  const store = storeInfo(item.store);
+                  const isEditingThis = editingName?.itemId === item.id && editingName?.catId === item.catId;
+                  return (
+                    <div key={item.id}>
+                      <div style={{ display:"flex", alignItems:"center", padding:"9px 20px", borderBottom:"1px solid #eeeeee", background: item.checked ? "#f0f7ee" : "#ffffff" }}>
+                        <div style={{ width:20, height:20, borderRadius:4, border: item.checked ? "none" : "1px solid #ccc", background: item.checked ? "#5a8e4a" : "transparent", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0, marginRight:12, fontSize:12, color:"#ffffff" }}
+                          onClick={() => toggleItem(item.catId, item.id)}>{item.checked && "✓"}</div>
+                        <div style={{ flex:1 }}>
+                          {isEditingThis ? (
+                            <input autoFocus value={editNameValue} onChange={e => setEditNameValue(e.target.value)}
+                              onBlur={confirmEditName} onKeyDown={e => { if (e.key==="Enter") confirmEditName(); if (e.key==="Escape") setEditingName(null); }}
+                              style={{ fontSize:16, border:"none", borderBottom:"2px solid #c8a96e", outline:"none", fontFamily:"Georgia,serif", background:"transparent", color:"#1a1a1a", width:"100%" }} />
+                          ) : (
+                            <span onClick={() => startEditName(item.catId, item.id, item.name)} style={{ fontSize:16, cursor:"text", textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#bbb" : "#1a1a1a" }}>{item.name}</span>
+                          )}
+                          <div style={{ fontSize:12, color:"#aaa", marginTop:2 }}>{item.catLabel}</div>
                         </div>
-                        {editingStore === item.id && (
-                          <div style={{ display:"flex", gap:6, padding:"8px 20px 8px 54px", background:"#f8f8f8", borderBottom:"1px solid #eeeeee", flexWrap:"wrap" }}>
-                            {STORES.map(s => (
-                              <button key={s.id} onClick={() => setItemStore(item.catId, item.id, s.id)} style={{ background: item.store===s.id ? s.color : "transparent", border:`1px solid ${item.store===s.id ? s.color : "#ccc"}`, color: item.store===s.id ? "#ffffff" : s.color, borderRadius:20, padding:"4px 10px", fontSize:13, cursor:"pointer" }}>{s.label}</button>
-                            ))}
-                          </div>
-                        )}
+                        <button onClick={() => setEditingStore(editingStore===item.id ? null : item.id)} style={{ background:"transparent", border:`1px solid ${store.color}`, borderRadius:12, padding:"2px 8px", fontSize:12, color:store.color, cursor:"pointer", marginRight:6, whiteSpace:"nowrap" }}>{store.label.split(" ")[0]}</button>
+                        <button onClick={() => toggleFrequent(item.catId, item.id)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:14, color: item.frequent ? "#c8a96e" : "#ddd", padding:3 }}>★</button>
+                        <button onClick={() => deleteItem(item.catId, item.id)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:14, color:"#e53935", padding:3 }}>✕</button>
                       </div>
-                    );
-                  })}
-                  <div style={{ textAlign:"center", padding:"16px 20px" }}>
-                    <button onClick={() => {
-                      updateCategories(cats => cats.map(cat =>
-                        cat.id === newItemCat
-                          ? { ...cat, items: [{ id: nextId, name: search.trim(), checked: true, frequent: false, store: newItemStore }, ...cat.items] }
-                          : cat
-                      ));
-                      setNextId(n => n + 1);
-                      setSearch("");
-                    }} style={{ background:"#c8a96e", border:"none", borderRadius:8, padding:"10px 20px", color:"#fff", cursor:"pointer", fontSize:15, fontFamily:"Georgia,serif" }}>
-                      + Ajouter « {search} »
-                    </button>
-                  </div>
-                </>
-              )}
+                      {editingStore === item.id && (
+                        <div style={{ display:"flex", gap:6, padding:"8px 20px 8px 54px", background:"#f8f8f8", borderBottom:"1px solid #eeeeee", flexWrap:"wrap" }}>
+                          {STORES.map(s => (
+                            <button key={s.id} onClick={() => setItemStore(item.catId, item.id, s.id)} style={{ background: item.store===s.id ? s.color : "transparent", border:`1px solid ${item.store===s.id ? s.color : "#ccc"}`, color: item.store===s.id ? "#ffffff" : s.color, borderRadius:20, padding:"4px 10px", fontSize:13, cursor:"pointer" }}>{s.label}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}{addBtn}</>);
+              })()}
             </div>
           )}
 
